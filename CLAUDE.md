@@ -57,6 +57,9 @@ Amplify.configure(outputs);
 
 The only `.env` variable is `VITE_GOOGLE_MAPS_API_KEY` in `.env.local`.
 
+### AWS CLI Profile
+**ALWAYS use `--profile melevadores-prod`** for all AWS CLI and Amplify commands in this project. Never use `miniswimmer` or any other profile.
+
 ### RBAC
 `PrivateRoute.tsx` contains `ProtectedRoute` which checks route permissions by role. Role IDs used in auth state:
 - `adminRole` — full access to all routes

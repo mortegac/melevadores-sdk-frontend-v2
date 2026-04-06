@@ -42,13 +42,13 @@ function Main() {
     });
 
     const customersCreado = customers.filter((c) => c.status === "CREADO");
-    const customersInactivo = customers.filter((c) => c.status === "INACTIVO");
+    const customersContactado = customers.filter((c) => c.status === "CONTACTADO");
 
     return {
       customersThisMonth: customersThisMonth.length,
       emailsThisMonth: adminEmails.length,
       customersCreado: customersCreado.length,
-      customersInactivo: customersInactivo.length,
+      customersContactado: customersContactado.length,
     };
   }, [customers, adminEmails, currentMonth, currentYear]);
 
@@ -72,21 +72,21 @@ function Main() {
       loading: adminStatus === "loading",
     },
     {
-      label: "Clientes CREADO",
+      label: "Creado",
       sublabel: "pendientes de gestión",
       value: stats.customersCreado,
       icon: "Clock" as const,
-      iconBg: "bg-warning/10",
-      iconColor: "text-warning",
+      iconBg: "bg-primary/10",
+      iconColor: "text-primary",
       loading: customersStatus === "loading",
     },
     {
-      label: "Clientes INACTIVO",
-      sublabel: "clientes inactivos",
-      value: stats.customersInactivo,
-      icon: "UserX" as const,
-      iconBg: "bg-danger/10",
-      iconColor: "text-danger",
+      label: "Contactado",
+      sublabel: "en seguimiento",
+      value: stats.customersContactado,
+      icon: "Phone" as const,
+      iconBg: "bg-warning/10",
+      iconColor: "text-warning",
       loading: customersStatus === "loading",
     },
   ];

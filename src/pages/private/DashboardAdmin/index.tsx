@@ -48,11 +48,12 @@ function Main() {
     customersPerMonth,
     emailsPerMonth,
     customersCreado,
-    customersInactivo,
     customersContactado,
-    customersRechazaPropuesta,
-    customersEsperaCotizacion,
-    customersAceptaPropuesta,
+    customersEsperandoInfo,
+    customersGenerandoCotizacion,
+    customersCotizacionEnviada,
+    customersCotizacionAceptada,
+    customersCotizacionRechazada,
   } = useMemo(() => {
     const customersPerMonth = months.map(({ month, year }) =>
       customers.filter((c) => {
@@ -72,12 +73,13 @@ function Main() {
     return {
       customersPerMonth,
       emailsPerMonth,
-      customersCreado: customers.filter((c) => c.status === "CREADO").length,
-      customersInactivo: customers.filter((c) => c.status === "INACTIVO").length,
-      customersContactado: customers.filter((c) => c.status === "CONTACTADO").length,
-      customersRechazaPropuesta: customers.filter((c) => c.status === "RECHAZA PROPUESTA").length,
-      customersEsperaCotizacion: customers.filter((c) => c.status === "ESPERA DE COTIZACION").length,
-      customersAceptaPropuesta: customers.filter((c) => c.status === "ACEPTA PROPUESTA").length,
+      customersCreado:              customers.filter((c) => c.status === "CREADO").length,
+      customersContactado:          customers.filter((c) => c.status === "CONTACTADO").length,
+      customersEsperandoInfo:       customers.filter((c) => c.status === "ESPERANDO_INFO").length,
+      customersGenerandoCotizacion: customers.filter((c) => c.status === "GENERANDO_COTIZACION").length,
+      customersCotizacionEnviada:   customers.filter((c) => c.status === "COTIZACION_ENVIADA").length,
+      customersCotizacionAceptada:  customers.filter((c) => c.status === "COTIZACION_ACEPTADA").length,
+      customersCotizacionRechazada: customers.filter((c) => c.status === "COTIZACION_RECHAZADA").length,
     };
   }, [customers, adminEmails]);
 
@@ -177,7 +179,7 @@ function Main() {
         )}
       </div>
 
-      {/* Card 3 — Clientes CREADO (25%) */}
+      {/* Card 3 — Creado */}
       <div className="col-span-12 sm:col-span-6 lg:col-span-3 box box--stacked p-5">
         <div className="flex items-center">
           <div className="flex-1 min-w-0">
@@ -186,7 +188,7 @@ function Main() {
             ) : (
               <div className="text-3xl font-bold">{customersCreado}</div>
             )}
-            <div className="text-base text-slate-500 mt-1">Clientes CREADO</div>
+            <div className="text-base text-slate-500 mt-1">Creado</div>
             <div className="text-xs text-slate-400 mt-0.5">pendientes de gestión</div>
           </div>
           <div className="w-14 h-14 flex-shrink-0 flex items-center justify-center rounded-full ml-4 bg-primary/10">
@@ -195,25 +197,7 @@ function Main() {
         </div>
       </div>
 
-      {/* Card 4 — Clientes INACTIVO (25%) */}
-      <div className="col-span-12 sm:col-span-6 lg:col-span-3 box box--stacked p-5">
-        <div className="flex items-center">
-          <div className="flex-1 min-w-0">
-            {isLoadingCustomers ? (
-              <div className="h-9 w-16 bg-slate-200 dark:bg-darkmode-400 rounded animate-pulse mb-1" />
-            ) : (
-              <div className="text-3xl font-bold">{customersInactivo}</div>
-            )}
-            <div className="text-base text-slate-500 mt-1">Clientes INACTIVO</div>
-            <div className="text-xs text-slate-400 mt-0.5">clientes inactivos</div>
-          </div>
-          <div className="w-14 h-14 flex-shrink-0 flex items-center justify-center rounded-full ml-4 bg-danger/10">
-            <Lucide icon="UserX" className="w-7 h-7 text-danger" />
-          </div>
-        </div>
-      </div>
-
-      {/* Card 5 — Clientes CONTACTADO (25%) */}
+      {/* Card 4 — Contactado */}
       <div className="col-span-12 sm:col-span-6 lg:col-span-3 box box--stacked p-5">
         <div className="flex items-center">
           <div className="flex-1 min-w-0">
@@ -222,7 +206,7 @@ function Main() {
             ) : (
               <div className="text-3xl font-bold">{customersContactado}</div>
             )}
-            <div className="text-base text-slate-500 mt-1">Clientes CONTACTADO</div>
+            <div className="text-base text-slate-500 mt-1">Contactado</div>
             <div className="text-xs text-slate-400 mt-0.5">en seguimiento</div>
           </div>
           <div className="w-14 h-14 flex-shrink-0 flex items-center justify-center rounded-full ml-4 bg-warning/10">
@@ -231,35 +215,17 @@ function Main() {
         </div>
       </div>
 
-      {/* Card 6 — Clientes RECHAZA PROPUESTA (25%) */}
+      {/* Card 5 — Esperando información */}
       <div className="col-span-12 sm:col-span-6 lg:col-span-3 box box--stacked p-5">
         <div className="flex items-center">
           <div className="flex-1 min-w-0">
             {isLoadingCustomers ? (
               <div className="h-9 w-16 bg-slate-200 dark:bg-darkmode-400 rounded animate-pulse mb-1" />
             ) : (
-              <div className="text-3xl font-bold">{customersRechazaPropuesta}</div>
+              <div className="text-3xl font-bold">{customersEsperandoInfo}</div>
             )}
-            <div className="text-base text-slate-500 mt-1">Rechaza Propuesta</div>
-            <div className="text-xs text-slate-400 mt-0.5">propuesta rechazada</div>
-          </div>
-          <div className="w-14 h-14 flex-shrink-0 flex items-center justify-center rounded-full ml-4 bg-danger/10">
-            <Lucide icon="ThumbsDown" className="w-7 h-7 text-danger" />
-          </div>
-        </div>
-      </div>
-
-      {/* Card 7 — Clientes ESPERA DE COTIZACION (25%) */}
-      <div className="col-span-12 sm:col-span-6 lg:col-span-3 box box--stacked p-5">
-        <div className="flex items-center">
-          <div className="flex-1 min-w-0">
-            {isLoadingCustomers ? (
-              <div className="h-9 w-16 bg-slate-200 dark:bg-darkmode-400 rounded animate-pulse mb-1" />
-            ) : (
-              <div className="text-3xl font-bold">{customersEsperaCotizacion}</div>
-            )}
-            <div className="text-base text-slate-500 mt-1">Espera Cotización</div>
-            <div className="text-xs text-slate-400 mt-0.5">esperando cotización</div>
+            <div className="text-base text-slate-500 mt-1">Esperando información</div>
+            <div className="text-xs text-slate-400 mt-0.5">en espera del cliente</div>
           </div>
           <div className="w-14 h-14 flex-shrink-0 flex items-center justify-center rounded-full ml-4 bg-orange-500/10">
             <Lucide icon="Clock3" className="w-7 h-7 text-orange-500" />
@@ -267,20 +233,74 @@ function Main() {
         </div>
       </div>
 
-      {/* Card 8 — Clientes ACEPTA PROPUESTA (25%) */}
+      {/* Card 6 — Generando cotización */}
       <div className="col-span-12 sm:col-span-6 lg:col-span-3 box box--stacked p-5">
         <div className="flex items-center">
           <div className="flex-1 min-w-0">
             {isLoadingCustomers ? (
               <div className="h-9 w-16 bg-slate-200 dark:bg-darkmode-400 rounded animate-pulse mb-1" />
             ) : (
-              <div className="text-3xl font-bold">{customersAceptaPropuesta}</div>
+              <div className="text-3xl font-bold">{customersGenerandoCotizacion}</div>
             )}
-            <div className="text-base text-slate-500 mt-1">Acepta Propuesta</div>
-            <div className="text-xs text-slate-400 mt-0.5">propuesta aceptada</div>
+            <div className="text-base text-slate-500 mt-1">Generando cotización</div>
+            <div className="text-xs text-slate-400 mt-0.5">en preparación</div>
+          </div>
+          <div className="w-14 h-14 flex-shrink-0 flex items-center justify-center rounded-full ml-4 bg-purple-500/10">
+            <Lucide icon="FileText" className="w-7 h-7 text-purple-500" />
+          </div>
+        </div>
+      </div>
+
+      {/* Card 7 — Cotización enviada */}
+      <div className="col-span-12 sm:col-span-6 lg:col-span-3 box box--stacked p-5">
+        <div className="flex items-center">
+          <div className="flex-1 min-w-0">
+            {isLoadingCustomers ? (
+              <div className="h-9 w-16 bg-slate-200 dark:bg-darkmode-400 rounded animate-pulse mb-1" />
+            ) : (
+              <div className="text-3xl font-bold">{customersCotizacionEnviada}</div>
+            )}
+            <div className="text-base text-slate-500 mt-1">Cotización enviada</div>
+            <div className="text-xs text-slate-400 mt-0.5">esperando respuesta</div>
+          </div>
+          <div className="w-14 h-14 flex-shrink-0 flex items-center justify-center rounded-full ml-4 bg-blue-500/10">
+            <Lucide icon="Send" className="w-7 h-7 text-blue-500" />
+          </div>
+        </div>
+      </div>
+
+      {/* Card 8 — Cotización Aceptada */}
+      <div className="col-span-12 sm:col-span-6 lg:col-span-3 box box--stacked p-5">
+        <div className="flex items-center">
+          <div className="flex-1 min-w-0">
+            {isLoadingCustomers ? (
+              <div className="h-9 w-16 bg-slate-200 dark:bg-darkmode-400 rounded animate-pulse mb-1" />
+            ) : (
+              <div className="text-3xl font-bold">{customersCotizacionAceptada}</div>
+            )}
+            <div className="text-base text-slate-500 mt-1">Cotización Aceptada</div>
+            <div className="text-xs text-slate-400 mt-0.5">cliente confirmado</div>
           </div>
           <div className="w-14 h-14 flex-shrink-0 flex items-center justify-center rounded-full ml-4 bg-success/10">
             <Lucide icon="ThumbsUp" className="w-7 h-7 text-success" />
+          </div>
+        </div>
+      </div>
+
+      {/* Card 9 — Cotización Rechazada */}
+      <div className="col-span-12 sm:col-span-6 lg:col-span-3 box box--stacked p-5">
+        <div className="flex items-center">
+          <div className="flex-1 min-w-0">
+            {isLoadingCustomers ? (
+              <div className="h-9 w-16 bg-slate-200 dark:bg-darkmode-400 rounded animate-pulse mb-1" />
+            ) : (
+              <div className="text-3xl font-bold">{customersCotizacionRechazada}</div>
+            )}
+            <div className="text-base text-slate-500 mt-1">Cotización Rechazada</div>
+            <div className="text-xs text-slate-400 mt-0.5">no concretado</div>
+          </div>
+          <div className="w-14 h-14 flex-shrink-0 flex items-center justify-center rounded-full ml-4 bg-danger/10">
+            <Lucide icon="ThumbsDown" className="w-7 h-7 text-danger" />
           </div>
         </div>
       </div>

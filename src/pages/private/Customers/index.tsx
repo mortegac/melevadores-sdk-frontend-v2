@@ -24,17 +24,21 @@ type StatusFilter =
   | "all"
   | "CREADO"
   | "CONTACTADO"
-  | "RECHAZA PROPUESTA"
-  | "ESPERA DE COTIZACION"
-  | "ACEPTA PROPUESTA";
+  | "ESPERANDO_INFO"
+  | "GENERANDO_COTIZACION"
+  | "COTIZACION_ENVIADA"
+  | "COTIZACION_ACEPTADA"
+  | "COTIZACION_RECHAZADA";
 
 const STATUS_OPTIONS: { key: StatusFilter; label: string }[] = [
-  { key: "all", label: "Todos" },
-  { key: "CREADO", label: "Creado" },
-  { key: "CONTACTADO", label: "Contactado" },
-  { key: "RECHAZA PROPUESTA", label: "Rechaza Propuesta" },
-  { key: "ESPERA DE COTIZACION", label: "Espera Cotización" },
-  { key: "ACEPTA PROPUESTA", label: "Acepta Propuesta" },
+  { key: "all",                  label: "Todos" },
+  { key: "CREADO",               label: "Creado" },
+  { key: "CONTACTADO",           label: "Contactado" },
+  { key: "ESPERANDO_INFO",       label: "Esperando información" },
+  { key: "GENERANDO_COTIZACION", label: "Generando cotización" },
+  { key: "COTIZACION_ENVIADA",   label: "Cotización enviada" },
+  { key: "COTIZACION_ACEPTADA",  label: "Cotización Aceptada" },
+  { key: "COTIZACION_RECHAZADA", label: "Cotización Rechazada" },
 ];
 
 function formatDate(iso: string): string {
@@ -57,9 +61,11 @@ function formatRequestDate(date?: string): string {
 const STATUS_VALUES = [
   "CREADO",
   "CONTACTADO",
-  "RECHAZA PROPUESTA",
-  "ESPERA DE COTIZACION",
-  "ACEPTA PROPUESTA",
+  "ESPERANDO_INFO",
+  "GENERANDO_COTIZACION",
+  "COTIZACION_ENVIADA",
+  "COTIZACION_ACEPTADA",
+  "COTIZACION_RECHAZADA",
 ] as const;
 type CustomerStatus = typeof STATUS_VALUES[number];
 
@@ -90,11 +96,13 @@ function InlineStatusSelect({ customer }: InlineStatusSelectProps) {
   };
 
   const colorMap: Record<string, string> = {
-    CREADO: "bg-primary/10 text-primary border-primary/20",
-    CONTACTADO: "bg-warning/10 text-warning border-warning/20",
-    "RECHAZA PROPUESTA": "bg-danger/10 text-danger border-danger/20",
-    "ESPERA DE COTIZACION": "bg-orange-500/10 text-orange-500 border-orange-500/20",
-    "ACEPTA PROPUESTA": "bg-success/10 text-success border-success/20",
+    CREADO:                "bg-primary/10 text-primary border-primary/20",
+    CONTACTADO:            "bg-warning/10 text-warning border-warning/20",
+    ESPERANDO_INFO:        "bg-orange-500/10 text-orange-500 border-orange-500/20",
+    GENERANDO_COTIZACION:  "bg-purple-500/10 text-purple-500 border-purple-500/20",
+    COTIZACION_ENVIADA:    "bg-blue-500/10 text-blue-500 border-blue-500/20",
+    COTIZACION_ACEPTADA:   "bg-success/10 text-success border-success/20",
+    COTIZACION_RECHAZADA:  "bg-danger/10 text-danger border-danger/20",
   };
 
   const selectClass = `text-xs font-medium px-2 py-0.5 rounded-full border appearance-none cursor-pointer focus:outline-none focus:ring-1 focus:ring-theme-1 transition-opacity ${
@@ -406,13 +414,25 @@ export default function CustomersPage() {
 }
 
 /* ── StatusBadge ────────────────────────────────────────────────────────────── */
+const STATUS_LABELS: Record<string, string> = {
+  CREADO:               "Creado",
+  CONTACTADO:           "Contactado",
+  ESPERANDO_INFO:       "Esperando información",
+  GENERANDO_COTIZACION: "Generando cotización",
+  COTIZACION_ENVIADA:   "Cotización enviada",
+  COTIZACION_ACEPTADA:  "Cotización Aceptada",
+  COTIZACION_RECHAZADA: "Cotización Rechazada",
+};
+
 function StatusBadge({ status }: { status: string }) {
   const colorMap: Record<string, string> = {
-    CREADO: "bg-primary/10 text-primary",
-    CONTACTADO: "bg-warning/10 text-warning",
-    "RECHAZA PROPUESTA": "bg-danger/10 text-danger",
-    "ESPERA DE COTIZACION": "bg-orange-500/10 text-orange-500",
-    "ACEPTA PROPUESTA": "bg-success/10 text-success",
+    CREADO:               "bg-primary/10 text-primary",
+    CONTACTADO:           "bg-warning/10 text-warning",
+    ESPERANDO_INFO:       "bg-orange-500/10 text-orange-500",
+    GENERANDO_COTIZACION: "bg-purple-500/10 text-purple-500",
+    COTIZACION_ENVIADA:   "bg-blue-500/10 text-blue-500",
+    COTIZACION_ACEPTADA:  "bg-success/10 text-success",
+    COTIZACION_RECHAZADA: "bg-danger/10 text-danger",
   };
   return (
     <span
@@ -420,7 +440,7 @@ function StatusBadge({ status }: { status: string }) {
         colorMap[status] ?? "bg-slate-100 text-slate-600"
       }`}
     >
-      {status}
+      {STATUS_LABELS[status] ?? status}
     </span>
   );
 }
@@ -560,11 +580,13 @@ function CustomerFormSlideover({
                 onChange={(e) => set("status", e.target.value)}
                 className="border border-slate-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-theme-1 focus:border-theme-1"
               >
-                <option value="CREADO">CREADO</option>
-                <option value="CONTACTADO">CONTACTADO</option>
-                <option value="RECHAZA PROPUESTA">RECHAZA PROPUESTA</option>
-                <option value="ESPERA DE COTIZACION">ESPERA DE COTIZACION</option>
-                <option value="ACEPTA PROPUESTA">ACEPTA PROPUESTA</option>
+                <option value="CREADO">Creado</option>
+                <option value="CONTACTADO">Contactado</option>
+                <option value="ESPERANDO_INFO">Esperando información del cliente</option>
+                <option value="GENERANDO_COTIZACION">Generando cotización</option>
+                <option value="COTIZACION_ENVIADA">Cotización enviada</option>
+                <option value="COTIZACION_ACEPTADA">Cotización Aceptada</option>
+                <option value="COTIZACION_RECHAZADA">Cotización Rechazada</option>
               </select>
             </div>
 

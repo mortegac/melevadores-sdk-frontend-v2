@@ -41,9 +41,13 @@ function CustomerSearchList({ list, searchText }: { list: Customer[]; searchText
   };
 
   const statusColor: Record<string, string> = {
-    ACTIVO: 'bg-green-100 text-green-700 border-green-300',
-    INACTIVO: 'bg-slate-100 text-slate-500 border-slate-300',
-    CREADO: 'bg-blue-100 text-blue-700 border-blue-300',
+    CREADO:               'bg-primary/10 text-primary border-primary/20',
+    CONTACTADO:           'bg-warning/10 text-warning border-warning/20',
+    ESPERANDO_INFO:       'bg-orange-500/10 text-orange-500 border-orange-500/20',
+    GENERANDO_COTIZACION: 'bg-purple-500/10 text-purple-500 border-purple-500/20',
+    COTIZACION_ENVIADA:   'bg-blue-500/10 text-blue-500 border-blue-500/20',
+    COTIZACION_ACEPTADA:  'bg-success/10 text-success border-success/20',
+    COTIZACION_RECHAZADA: 'bg-danger/10 text-danger border-danger/20',
   };
 
   return (
