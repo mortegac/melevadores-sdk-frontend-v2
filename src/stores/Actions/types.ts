@@ -24,9 +24,11 @@ export type CreateActionInput = {
 };
 
 export const ACTION_STATUS_OPTIONS = [
-  { value: "CREADO",      label: "Creado" },
-  { value: "CONTACTADO",  label: "Contactado" },
-  { value: "EN_PROCESO",  label: "En proceso" },
-  { value: "CERRADO",     label: "Cerrado" },
-  { value: "DESCARTADO",  label: "Descartado" },
+  { value: "CREADO",               label: "Creado" },
+  { value: "CONTACTADO",           label: "Contactado" },
+  { value: "ESPERANDO_INFO",       label: "Esperando información del cliente" },
+  { value: "GENERANDO_COTIZACION", label: "Generando cotización" },
+  { value: "COTIZACION_ENVIADA",   label: "Cotización enviada" },
+  { value: "COTIZACION_ACEPTADA",  label: "Cotización Aceptada" },
+  { value: "COTIZACION_RECHAZADA", label: "Cotización Rechazada" },
 ];
