@@ -1,0 +1,413 @@
+import { useState, useEffect, useCallback } from "react";
+import _ from "lodash";
+import debounce from 'lodash/debounce';
+import Toastify from "toastify-js";
+
+import {formatCurrency} from "../../../utils/helper";
+
+import Notification from "@/components/Base/Notification";
+import Alert from "@/components/Base/Alert";
+import LoadingIcon from "@/components/Base/LoadingIcon";
+import { Slideover } from "@/components/Base/Headless";
+import { Menu, Popover } from "@/components/Base/Headless"
+import {FormInput, FormSelect } from "@/components/Base/Form";
+import Lucide from "@/components/Base/Lucide";
+import Button from "@/components/Base/Button";
+import Table from "@/components/Base/Table";
+
+
+import { useAppSelector, useAppDispatch } from "@/stores/hooks";
+import { setBreadcrumb } from '@/stores/breadcrumb';
+import { setWPStatus} from "@/stores/WP/slice";
+
+
+
+import { getPaymentTransactions, selectPaymentTransactions } from "@/stores/PaymentTransactions/slice";
+import { setEmailSend, selectEmailSend, cleanSentVar } from "@/stores/EmailsSent/slice";
+
+import { CartDetail} from "./components/cartDetail"; 
+
+// import {
+//   // formatCurrency,
+//   // monthsDate,
+//   calculateCurrentDate,
+// } from "../../../utils/helper";
+// const currentYear = calculateCurrentDate().year;
+// const currentMonth = calculateCurrentDate().month;
+
+const typeOfName:any = {
+  ["CREATE"]: "ABANDONADA",
+  ["AUTHORIZED"]: "PAGADA",
+  ["FAILED"]: "FALLIDA",
+  ["INITIALIZED"]: "INICIALIZADA",
+  [""]: "-",
+};
+
+function Content(props: any) {
+  const [cartId, setCartId] = useState("");
+  const [switcherSlideover, setSwitcherSlideover] = useState(false);
+const {paymentTransactions} = props;
+const dispatch = useAppDispatch();
+  return (
+    <>
+    <Slideover
+        size="lg"
+        key="Slide-Historial"
+        open={switcherSlideover}
+        onClose={() => {
+          setSwitcherSlideover(false);
+        }}
+      >
+        <Slideover.Panel className="w-72 rounded-[0.75rem_0_0_0.75rem/1.1rem_0_0_1.1rem]">
+          <a
+            href=""
+            className="focus:outline-none hover:bg-white/10 bg-white/5 transition-all hover:rotate-180 absolute inset-y-0 left-0 right-auto flex items-center justify-center my-auto -ml-[60px] sm:-ml-[105px] border rounded-full text-white/90 w-8 h-8 sm:w-14 sm:h-14 border-white/90 hover:scale-105"
+            onClick={(e:any) => {
+              e.preventDefault();
+              setSwitcherSlideover(false);
+            }}
+          >
+            <Lucide className="w-3 h-3 sm:w-8 sm:h-8 stroke-[1]" icon="X" />
+          </a>
+          <Slideover.Description className="p-0">
+            <div className="flex flex-col">
+              <div className="px-8 pt-6 pb-8">
+                <div className="text-base font-medium">Detalle del Carro de compras</div>
+                <div className="text-slate-500 mt-0.5  mb-12">
+                  Generado
+                </div>
+                <div className="overflow-auto xl:overflow-visible">
+                  <CartDetail cartId={cartId}/>
+                </div>
+              </div>
+            </div>
+          </Slideover.Description>
+        </Slideover.Panel>
+    </Slideover>
+      <div className="overflow-auto xl:overflow-visible">
+        <Table className="border-b border-slate-200/60">
+          <Table.Thead>
+            <Table.Tr>
+              {/* <Table.Td className="w-5 py-4 font-medium border-t bg-slate-50 border-slate-200/60 text-slate-500">
+              </Table.Td> */}
+              <Table.Td className="py-4 font-medium border-t bg-slate-50 border-slate-200/60 text-slate-500">
+                Orden
+              </Table.Td>
+              <Table.Td className=" py-4 font-medium border-t bg-slate-50 border-slate-200/60 text-slate-500 text-center">
+                Estado
+              </Table.Td>
+              <Table.Td className="text-left py-4 font-medium border-t bg-slate-50 border-slate-200/60 text-slate-500">
+                Glosa
+              </Table.Td>
+              <Table.Td className="py-4 font-medium border-t bg-slate-50 border-slate-200/60 text-slate-500 text-center">
+                Monto
+              </Table.Td>
+              <Table.Td className="py-4 font-medium text-left border-t bg-slate-50 border-slate-200/60 text-slate-500">
+                Cliente
+              </Table.Td>
+              <Table.Td className="py-4 font-medium text-left border-t bg-slate-50 border-slate-200/60 text-slate-500">
+                Fecha
+              </Table.Td>
+              <Table.Td className="py-4 font-medium text-center border-t bg-slate-50 border-slate-200/60 text-slate-500">
+              </Table.Td>
+            </Table.Tr>
+          </Table.Thead>
+          <Table.Tbody>
+            {/* <pre>{JSON.stringify(paymentTransactions, null, 2)}</pre> */}
+            {Array.isArray(paymentTransactions) && paymentTransactions.map((item:any, index) => {
+             
+              return (
+              <Table.Tr key={index} className="[&_td]:last:border-b-0">
+                <Table.Td className=" py-4 border-dashed">
+                  <div className="flex items-center">
+                    <div className="text-lg">
+                      {item?.buy_order}
+                    </div>
+                  </div>
+                </Table.Td>
+                <Table.Td className=" py-4 border-dashed">
+                  <div className={`flex justify-center items-center text-xs border rounded-full px-2 py-2 
+                    ${item?.status === "CREATE" && "text-success bg-success/10 font-thin "}
+                    ${item?.status === "AUTHORIZED" && "text-primary border-primary font-black font-dm-sans "}
+                    ${item?.status === "INITIALIZED" && "text-gray-600 bg-gray-200 font-thin "}
+                    `}>
+                    <span className="-mt-px">
+                    {typeOfName[item?.status]}
+                    </span>
+                  </div>
+                </Table.Td>
+                <Table.Td className=" py-4 border-dashed">
+                  <div className="flex items-start justify-start flex-col">
+                    <p className="uppercase font-thin text-sm text-center">{item?.glosa}</p>
+                  </div>                   
+                </Table.Td>
+                
+                <Table.Td className=" py-4 border-dashed">
+                  <div className="flex items-center justify-center flex-col">
+                    <p className="uppercase font-thin text-sm text-center">$ {formatCurrency(item?.amount)}</p>
+                  </div>                   
+                </Table.Td>
+                <Table.Td className=" py-4 border-dashed">
+                  <div className="flex items-start justify-start flex-col">
+                    <p className="uppercase font-thin text-sm text-left">{item?.usersId}</p>
+                  </div>                   
+                </Table.Td>
+                <Table.Td className=" py-4 border-dashed">
+                  <div className="flex items-start justify-start flex-col">
+                    <p className="uppercase font-thin text-sm text-left">{item?.day}-{item?.month}-{item?.year}</p>
+                  </div>                   
+                </Table.Td>
+                <Table.Td className="border-dashed m-0">
+                  <Button
+                      rounded
+                      // variant="primary"
+                      className="px-2 py-2 border border-primary hover:bg-purple-100 mr-2"
+                      // onClick={() => setFlag(!flag)}
+                      onClick={(event: React.MouseEvent) => {
+                        event.preventDefault();
+                        setCartId(item?.shoppingCartId)
+                        setSwitcherSlideover(true);
+                      }}
+                    >
+                      <Lucide icon="ShoppingCart" className="w-10 h-10 p-2 text-primary" />{" "}
+                  </Button>
+                  <Button
+                      rounded
+                      className="px-2 py-2 border bg-slate-50 border-slate-300 hover:bg-slate-400 hover:text-white" 
+                      onClick={ async (event: React.MouseEvent) => {
+                        event.preventDefault();
+                        await dispatch(setWPStatus({token: item?.token}))
+                        await dispatch(getPaymentTransactions({}))
+                      }}
+                    >
+                      <Lucide icon="RefreshCcw" className="w-10 h-10 p-2 text-slate-400 hover:text-white" />{" "}
+                  </Button>
+                </Table.Td>
+                
+              
+              </Table.Tr>
+            )})}
+          </Table.Tbody>
+        </Table>
+      </div>
+    </>
+  );
+}
+
+function Main() {
+  const [searchTerm, setSearchTerm] = useState("")
+  const [statusShoppingCart, setStatusShoppingCart] = useState("PENDING")
+  const {paymentTransactions, status, errorMessage} = useAppSelector(selectPaymentTransactions);
+  const locations: any[] = [];
+  const dispatch = useAppDispatch();
+  dispatch(setBreadcrumb({first:"Transacciones Webpay", firstURL:"transactions"}));
+
+  async function handleSearchChange(){
+    searchTerm && searchTerm !== "" && await dispatch(getPaymentTransactions({ userId:searchTerm })) 
+    // searchTerm && searchTerm === "" && await dispatch(getPaymentTransactions({})) 
+  }
+  
+  useEffect(() => { 
+    (async () => await dispatch(getPaymentTransactions({})) )(); 
+    // (async () => await dispatch(getLocationsOnly()) )(); 
+  }, []);
+  
+  
+  return (
+    <>
+     <div className="grid grid-cols-12 gap-y-10 gap-x-6">
+      <div className="col-span-12">
+        <div className="flex flex-col md:h-10 gap-y-3 md:items-center md:flex-row">
+        <div className="flex justify-between w-full flex-col md:h-10 gap-y-3 md:items-center md:flex-row">
+              <h2 className="text-base font-medium group-[.mode--light]:text-white">Transacciones Webpay</h2>
+              
+  {/* ["CREATE"]: "ABANDONADA",
+  ["AUTHORIZED"]: "PAGADA",
+  ["INITIALIZED"]: "INICIALIZADA", */}
+              <div className="">
+                <Button
+                  rounded
+                  variant="primary"
+                  className={`px-8 py-3 border border-slate-200 mr-3 ${statusShoppingCart==="CREATE" && " bg-white text-primary"}`}
+                  onClick={()=>{
+                    dispatch(getPaymentTransactions({status:"CREATE"}))
+                    setStatusShoppingCart("PENDING")
+                  }}
+                >
+                  <span className="text-border-slate-200 font-dm-sans">ABANDONADAS</span>
+                </Button>
+                <Button
+                  rounded
+                  variant="primary"
+                  className={`px-8 py-3 border border-slate-200 mr-3 ${statusShoppingCart==="AUTHORIZED" && " bg-white text-primary"}`}
+                  onClick={()=>{
+                    dispatch(getPaymentTransactions({status:"AUTHORIZED"}))
+                    setStatusShoppingCart("AUTHORIZED")
+                  }}
+                >
+                  <span className="text-border-slate-200 font-dm-sans">PAGADOS </span>
+                </Button>
+                <Button
+                  rounded
+                  variant="primary"
+                  className={`px-8 py-3 border border-slate-200 ${statusShoppingCart==="INITIALIZED" && " bg-white text-primary"}`}
+                  onClick={()=>{
+                    dispatch(getPaymentTransactions({status:"INITIALIZED"}))
+                    setStatusShoppingCart("INITIALIZED")
+                  }}
+                >
+                  <span className="text-border-slate-200 font-dm-sans">INICIALIZADA </span>
+                </Button>
+              
+              </div>
+            </div>
+          {/* <div className="text-base font-medium group-[.mode--light]:text-white">
+            Transacciones Webpay
+          </div> */}
+          {/* <div className="flex flex-col sm:flex-row gap-x-3 gap-y-2 md:ml-auto">
+            <Button
+            variant="primary"
+            className="group-[.mode--light]:!bg-white/[0.12] group-[.mode--light]:!text-slate-200 group-[.mode--light]:!border-transparent"
+            >
+            <Lucide icon="PenLine" className="stroke-[1.3] w-4 h-4 mr-2" />{" "}
+            Nueva inscripción
+            </Button>
+            </div> */}
+        </div>
+        <div className="flex flex-col gap-8 mt-3.5">
+            {/* <pre>{JSON.stringify(enrollments, null, 2)}</pre> */}
+          <div className="flex flex-col box min-h-screen">
+           <div className="flex flex-col p-5 sm:items-center sm:flex-row gap-y-2 ">
+          
+                <div className="relative flex w-full">
+                   <FormInput
+                      formInputSize="lg"
+                      placeholder="Email cliente"
+                      aria-label="name" 
+                      aria-describedby="input-group-name"
+                      type="text"
+                      tabIndex={1} 
+                      className="w-96 rounded-[0.5rem] transition-colors duration-300 hover:duration-100 focus:z-10"
+                      name="guardianEmail"
+                      value={searchTerm}
+                      onChange={(e:any)=>setSearchTerm(String(e.target.value))}
+                    />
+                     <Button
+                      variant="primary"
+                      size="lg"
+                      className="ml-2 px-3 py-2 "
+                      onClick={handleSearchChange}
+                      >
+                      <Lucide icon="Search" className="w-5 h-5" />
+                      </Button>
+                     <Button
+                      size="lg"
+                      className="ml-1 px-3 py-2 border-primary"
+                      onClick={async()=> {
+                        await dispatch(getPaymentTransactions({}))
+                        setSearchTerm("")
+                      } }
+                      >
+                      <Lucide icon="X" className="w-5 h-5 text-primary" />
+                      </Button>
+                </div>
+          
+               
+              {/* <div className="flex flex-col sm:flex-row gap-x-3 gap-y-2 sm:ml-auto">
+                <Popover className="inline-block">
+                  {({ close }) => (
+                    <>
+                      <Popover.Button
+                        as={Button}
+                        variant="outline-secondary"
+                        className="w-full sm:w-auto"
+                      >
+                        <Lucide
+                          icon="ArrowDownWideNarrow"
+                          className="stroke-[1.3] w-4 h-4 mr-2"
+                        />
+                        Filtros
+                        
+                      </Popover.Button>
+                      <Popover.Panel placement="bottom-end">
+                        <div className="p-2">
+                          <div>
+                            <div className="text-left text-slate-500">
+                              Sede
+                            </div>
+                            <FormSelect className="flex-1 mt-2">
+                            </FormSelect>
+                          </div>
+                        
+                          <div>
+                            <div className="text-left text-slate-500 mt-4">
+                              Fecha
+                            </div>
+                            <FormSelect className="flex-1 mt-2">
+                            </FormSelect>
+                          </div>
+                          <div>
+                            <div className="text-left text-slate-500 mt-4">
+                              Estado
+                            </div>
+                            <FormSelect id="status" >
+                                <option key={"CREATE"} value={"CREATE"}>CREATE</option>
+                                <option key={"AUTHORIZED"} value={"AUTHORIZED"}>AUTHORIZED</option>
+                                <option key={"INITIALIZED"} value={"INITIALIZED"}>INITIALIZED</option>
+                            </FormSelect>
+                          </div>
+                          <div className="flex items-center mt-4">
+                            <Button
+                              variant="secondary"
+                              onClick={() => {
+                                close();
+                              }}
+                              className="w-32 ml-auto"
+                            >
+                              Close
+                            </Button>
+                            <Button variant="primary" className="w-32 ml-2">
+                              Apply
+                            </Button>
+                          </div>
+                        </div>
+                      </Popover.Panel>
+                    </>
+                  )}
+                </Popover>
+              </div> */}
+            </div>
+            
+                { status === "loading" && <div className="flex justify-center"><div className="w-16 h-16"><LoadingIcon
+                  color="#243C70"
+                  icon="oval"
+                  className="w-10 h-10 mt-10"
+                /></div></div>}
+
+                { status === "failed" && (
+                  <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
+                    <Lucide icon="AlertCircle" className="w-12 h-12 text-red-400" />
+                    <p className="text-lg font-medium text-slate-600">No se pudo cargar las transacciones</p>
+                    <p className="text-sm text-slate-400">{errorMessage || "Error de autorización. Contacta al administrador."}</p>
+                    <Button rounded variant="soft-primary" className="mt-2 px-6 py-2"
+                      onClick={() => dispatch(getPaymentTransactions({}))}
+                    >
+                      <Lucide icon="RefreshCw" className="w-4 h-4 mr-2" />
+                      Reintentar
+                    </Button>
+                  </div>
+                )}
+
+                { status === "idle" && <Content paymentTransactions={paymentTransactions} locations={locations}/>}
+                
+            <div className="flex flex-col-reverse flex-wrap items-center p-5 flex-reverse gap-y-2 sm:flex-row"> 
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </>
+  )
+}
+
+export default Main;
