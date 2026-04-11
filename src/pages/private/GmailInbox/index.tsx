@@ -33,9 +33,9 @@ function SourceBadge({ source }: { source?: string }) {
 type TabType = GmailInboxType | "ALL";
 
 const TABS: { key: TabType; label: string }[] = [
-  { key: "WEB-FORM", label: "WEB-FORM" },
-  { key: "SPAM",     label: "SPAM"     },
-  { key: "ALL",      label: "Todos"    },
+  { key: "ALL",      label: "Todos"           },
+  { key: "WEB-FORM", label: "Formularios Web" },
+  { key: "SPAM",     label: "SPAM"            },
 ];
 
 const today = () => new Date().toISOString().slice(0, 10);

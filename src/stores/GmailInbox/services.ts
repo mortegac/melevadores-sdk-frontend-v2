@@ -26,7 +26,7 @@ export const sendGmailReply = async (params: GmailReplyParams): Promise<{ succes
   return result?.data?.v2GmailReply ?? { success: false, error: "No response" };
 };
 
-const ADMIN_PAGE_SIZE = 50;
+const ADMIN_PAGE_SIZE = 100000;
 
 export const fetchGmailInboxPage = async (params: AdminFilterOptions): Promise<AdminPageResult> => {
   const now = new Date();
