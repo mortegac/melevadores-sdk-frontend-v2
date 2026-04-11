@@ -8,7 +8,7 @@ frontend:
         - yarn install --frozen-lockfile
         - git config user.email "ci@melevadores.cl"
         - git config user.name "Amplify CI"
-        - "git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/mortegac/miniswimmercl-sdk-frontend-v2.git"
+        - "git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/mortegac/melevadores-sdk-frontend-v2.git"
     build:
       commands:
         - yarn build
