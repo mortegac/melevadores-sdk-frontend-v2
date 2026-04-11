@@ -53,13 +53,24 @@ export const fetchGmailInboxPage = async (params: AdminFilterOptions): Promise<A
     ];
   }
 
-  const result: any = await client.graphql({
-    query: listV2GmailInboxes,
-    variables: { filter, limit: ADMIN_PAGE_SIZE, nextToken: params.nextToken ?? null },
-  });
-  const page = result?.data?.listV2GmailInboxes;
-  const items = (page?.items ?? []).sort((a: any, b: any) => b.dateSent.localeCompare(a.dateSent));
-  return { items, nextToken: page?.nextToken ?? null };
+  // DynamoDB applies filters AFTER scanning `limit` records, so a single request
+  // may return far fewer items than requested. We loop until we accumulate at
+  // least ADMIN_PAGE_SIZE matching items or exhaust the table.
+  const allItems: any[] = [];
+  let cursor: string | null = params.nextToken ?? null;
+
+  do {
+    const result: any = await client.graphql({
+      query: listV2GmailInboxes,
+      variables: { filter, limit: ADMIN_PAGE_SIZE, nextToken: cursor },
+    });
+    const page = result?.data?.listV2GmailInboxes;
+    allItems.push(...(page?.items ?? []));
+    cursor = page?.nextToken ?? null;
+  } while (cursor !== null && allItems.length < ADMIN_PAGE_SIZE);
+
+  allItems.sort((a: any, b: any) => b.dateSent.localeCompare(a.dateSent));
+  return { items: allItems, nextToken: cursor };
 };
 
 export const fetchGmailInboxByCustomerId = async (customerId: string): Promise<GmailInbox[]> => {

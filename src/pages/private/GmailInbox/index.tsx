@@ -50,7 +50,7 @@ export default function GmailInboxPage() {
   const { adminStatus, syncStatus, adminEmails, adminNextToken, adminErrorMessage } =
     useAppSelector(selectGmailInbox);
 
-  const [activeTab, setActiveTab]   = useState<TabType>("WEB-FORM");
+  const [activeTab, setActiveTab]   = useState<TabType>("ALL");
   const [dateFrom, setDateFrom]     = useState(thirtyDaysAgo());
   const [dateTo, setDateTo]         = useState(today());
   const [search, setSearch]         = useState("");
@@ -80,7 +80,7 @@ export default function GmailInboxPage() {
   useEffect(() => {
     setTokenHistory([null]);
     setCurrentPage(0);
-    loadPage(null, "WEB-FORM");
+    loadPage(null, "ALL");
   }, []);
 
   // Reset paginación cuando cambia el tab
