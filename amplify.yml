@@ -8,6 +8,7 @@ frontend:
         - yarn install --frozen-lockfile
         - git config user.email "ci@melevadores.cl"
         - git config user.name "Amplify CI"
+        - export GITHUB_TOKEN=$(aws secretsmanager get-secret-value --secret-id "amplify/melevadores-frontend/GITHUB_TOKEN" --query SecretString --output text --region us-east-2)
         - "git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/mortegac/melevadores-sdk-frontend-v2.git"
     build:
       commands:
