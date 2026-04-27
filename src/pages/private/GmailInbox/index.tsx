@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import Table from "@/components/Base/Table";
 import Lucide from "@/components/Base/Lucide";
 import Button from "@/components/Base/Button";
@@ -22,9 +22,8 @@ function SourceBadge({ source }: { source?: string }) {
     "instalacion-ascensores-montacargas": "bg-emerald-100 text-emerald-700",
     "WEB-FORM":                           "bg-slate-100 text-slate-600",
   };
-  const cls = colorMap[source] ?? "bg-slate-100 text-slate-600";
   return (
-    <span className={`inline-block px-2 py-0.5 rounded text-[11px] font-medium ${cls}`}>
+    <span className={`inline-block px-2 py-0.5 rounded text-[11px] font-medium ${colorMap[source] ?? "bg-slate-100 text-slate-600"}`}>
       {label}
     </span>
   );
@@ -38,143 +37,123 @@ const TABS: { key: TabType; label: string }[] = [
   { key: "SPAM",     label: "SPAM"            },
 ];
 
-const today = () => new Date().toISOString().slice(0, 10);
-const thirtyDaysAgo = () => {
-  const d = new Date();
-  d.setDate(d.getDate() - 30);
-  return d.toISOString().slice(0, 10);
-};
+const today        = () => new Date().toISOString().slice(0, 10);
+const thirtyDaysAgo = () => { const d = new Date(); d.setDate(d.getDate() - 30); return d.toISOString().slice(0, 10); };
 
 export default function GmailInboxPage() {
   const dispatch = useAppDispatch();
   const { adminStatus, syncStatus, adminEmails, adminNextToken, adminErrorMessage } =
     useAppSelector(selectGmailInbox);
 
-  const [activeTab, setActiveTab]   = useState<TabType>("ALL");
-  const [dateFrom, setDateFrom]     = useState(thirtyDaysAgo());
-  const [dateTo, setDateTo]         = useState(today());
-  const [search, setSearch]         = useState("");
-  const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [actionEmail, setActionEmail]   = useState<GmailInbox | null>(null);
-  const [actionOpen, setActionOpen]     = useState(false);
+  const [activeTab,   setActiveTab]   = useState<TabType>("ALL");
+  const [dateFrom,    setDateFrom]    = useState(thirtyDaysAgo());
+  const [dateTo,      setDateTo]      = useState(today());
+  const [search,      setSearch]      = useState("");
+  const [expandedId,  setExpandedId]  = useState<string | null>(null);
+  const [actionEmail, setActionEmail] = useState<GmailInbox | null>(null);
+  const [actionOpen,  setActionOpen]  = useState(false);
 
-  // Historial de tokens: índice 0 = página 1 (token null), índice 1 = página 2, etc.
-  const [tokenHistory, setTokenHistory] = useState<(string | null)[]>([null]);
-  const [currentPage, setCurrentPage]   = useState(0); // base-0
+  // tokenPages[i] = nextToken needed to load page i
+  // tokenPages[0] = null (first page, no token)
+  const [tokenPages,   setTokenPages]   = useState<(string | null)[]>([null]);
+  const [currentPage,  setCurrentPage]  = useState(0);
 
-  const loadPage = useCallback(
-    (token: string | null, tab: TabType = activeTab) => {
+  const activeFilters = useRef({ dateFrom: thirtyDaysAgo(), dateTo: today(), search: "", tab: "ALL" as TabType });
+  const pendingRef    = useRef(false);
+
+  const isLoading = adminStatus === "loading";
+  const isSyncing = syncStatus === "syncing";
+  const hasNext   = !!adminNextToken && !isLoading;
+  const hasPrev   = currentPage > 0 && !isLoading;
+
+  // ── Core fetch ─────────────────────────────────────────────────────────────
+  const fetchPage = useCallback(
+    (token: string | null, overrides?: Partial<typeof activeFilters.current>) => {
+      if (pendingRef.current || isLoading) return;
+      pendingRef.current = true;
+      const f = { ...activeFilters.current, ...overrides };
       const params: AdminFilterOptions = {
-        dateFrom:   dateFrom ? `${dateFrom}T00:00:00.000Z` : undefined,
-        dateTo:     dateTo   ? `${dateTo}T23:59:59.999Z`   : undefined,
-        searchText: search   || undefined,
-        type:       tab,
+        dateFrom:   f.dateFrom || undefined,
+        dateTo:     f.dateTo   || undefined,
+        searchText: f.search.trim() || undefined,
+        type:       f.tab,
         nextToken:  token,
       };
-      dispatch(getGmailInboxPage(params));
+      dispatch(getGmailInboxPage(params)).finally(() => { pendingRef.current = false; });
     },
-    [dispatch, dateFrom, dateTo, search, activeTab]
+    [dispatch, isLoading]
   );
 
-  // Carga inicial
-  useEffect(() => {
-    setTokenHistory([null]);
-    setCurrentPage(0);
-    loadPage(null, "ALL");
-  }, []);
+  // ── Load first page on mount ───────────────────────────────────────────────
+  useEffect(() => { fetchPage(null); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Reset paginación cuando cambia el tab
+  // ── Tab change: reset pagination ───────────────────────────────────────────
   const handleTabChange = (tab: TabType) => {
+    activeFilters.current = { ...activeFilters.current, tab };
     setActiveTab(tab);
     setExpandedId(null);
-    setTokenHistory([null]);
+    setTokenPages([null]);
     setCurrentPage(0);
-    loadPage(null, tab);
+    fetchPage(null, { tab });
   };
 
-  // Reset paginación y buscar
+  // ── Search: reset pagination ───────────────────────────────────────────────
   const handleFilter = () => {
-    setTokenHistory([null]);
+    const filters = { dateFrom, dateTo, search, tab: activeTab };
+    activeFilters.current = filters;
+    setTokenPages([null]);
     setCurrentPage(0);
-    loadPage(null, activeTab);
+    fetchPage(null, filters);
   };
 
-  const handleSync = async () => {
-    await dispatch(triggerSync());
-    setTokenHistory([null]);
-    setCurrentPage(0);
-    loadPage(null, activeTab);
-  };
-
-  // Ir a página siguiente
-  const handleNext = () => {
-    if (!adminNextToken) return;
-    const newPage = currentPage + 1;
-    const newHistory = [...tokenHistory.slice(0, newPage), adminNextToken];
-    setTokenHistory(newHistory);
-    setCurrentPage(newPage);
+  // ── Next page ──────────────────────────────────────────────────────────────
+  const handleNext = useCallback(() => {
+    if (!adminNextToken || isLoading) return;
+    const nextIdx = currentPage + 1;
+    setTokenPages((prev) => { const u = [...prev]; u[nextIdx] = adminNextToken; return u; });
+    setCurrentPage(nextIdx);
     setExpandedId(null);
-    loadPage(adminNextToken);
-  };
+    fetchPage(adminNextToken);
+  }, [adminNextToken, isLoading, currentPage, fetchPage]);
 
-  // Ir a página anterior
-  const handlePrev = () => {
-    if (currentPage === 0) return;
-    const newPage = currentPage - 1;
-    setCurrentPage(newPage);
+  // ── Prev page: uses stored token ───────────────────────────────────────────
+  const handlePrev = useCallback(() => {
+    if (currentPage === 0 || isLoading) return;
+    const prevIdx = currentPage - 1;
+    setCurrentPage(prevIdx);
     setExpandedId(null);
-    loadPage(tokenHistory[newPage]);
-  };
+    fetchPage(tokenPages[prevIdx] ?? null);
+  }, [currentPage, isLoading, tokenPages, fetchPage]);
 
-  // Ir a página específica (solo páginas ya visitadas)
-  const handleGoToPage = (pageIdx: number) => {
-    if (pageIdx === currentPage) return;
-    setCurrentPage(pageIdx);
-    setExpandedId(null);
-    loadPage(tokenHistory[pageIdx]);
-  };
+  // ── Sync ───────────────────────────────────────────────────────────────────
+  const handleSync = useCallback(() => {
+    if (pendingRef.current || isSyncing || isLoading) return;
+    pendingRef.current = true;
+    dispatch(triggerSync()).finally(() => {
+      pendingRef.current = false;
+      setTokenPages([null]);
+      setCurrentPage(0);
+      fetchPage(null);
+    });
+  }, [dispatch, isSyncing, isLoading, fetchPage]);
 
-  const toggleExpand = (id: string) =>
-    setExpandedId((prev) => (prev === id ? null : id));
-
-  const handleOpenAction = useCallback((email: GmailInbox) => {
-    setActionEmail(email);
-    setActionOpen(true);
-  }, []);
-
+  const toggleExpand    = (id: string) => setExpandedId((p) => (p === id ? null : id));
+  const handleOpenAction  = useCallback((email: GmailInbox) => { setActionEmail(email); setActionOpen(true); }, []);
   const handleCloseAction = useCallback(() => setActionOpen(false), []);
 
   const formatDate = (iso: string) => {
     if (!iso) return "-";
-    const d = new Date(iso);
-    return d.toLocaleString("es-CL", {
-      day: "2-digit", month: "2-digit", year: "numeric",
-      hour: "2-digit", minute: "2-digit",
-    });
+    return new Date(iso).toLocaleString("es-CL", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
   };
-
-  const totalKnownPages = adminNextToken
-    ? tokenHistory.length + 1   // hay al menos una página más
-    : tokenHistory.length;       // última página conocida
 
   return (
     <div className="p-5">
       {/* Header */}
       <div className="flex items-center justify-between mb-5">
         <h2 className="text-xl font-semibold">Emails - Gmail</h2>
-        <Button
-          variant="primary"
-          size="sm"
-          onClick={handleSync}
-          disabled={syncStatus === "syncing"}
-          className="flex items-center gap-2"
-        >
-          {syncStatus === "syncing" ? (
-            <LoadingIcon icon="oval" color="white" className="w-4 h-4" />
-          ) : (
-            <Lucide icon="RefreshCw" className="w-4 h-4" />
-          )}
-          Sincronizar
+        <Button variant="primary" size="sm" onClick={handleSync} disabled={isSyncing || isLoading} className="flex items-center gap-2">
+          <Lucide icon="RefreshCw" className={`w-4 h-4 ${isSyncing ? "animate-spin" : ""}`} />
+          {isSyncing ? "Sincronizando..." : "Sincronizar"}
         </Button>
       </div>
 
@@ -200,49 +179,26 @@ export default function GmailInboxPage() {
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
           <div>
             <label className="block text-xs text-slate-500 mb-1">Desde</label>
-            <input
-              type="date"
-              value={dateFrom}
-              onChange={(e) => setDateFrom(e.target.value)}
-              className="form-control text-sm w-full"
-            />
+            <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="form-control text-sm w-full" />
           </div>
           <div>
             <label className="block text-xs text-slate-500 mb-1">Hasta</label>
-            <input
-              type="date"
-              value={dateTo}
-              onChange={(e) => setDateTo(e.target.value)}
-              className="form-control text-sm w-full"
-            />
+            <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="form-control text-sm w-full" />
           </div>
           <div>
             <label className="block text-xs text-slate-500 mb-1">Email / Asunto</label>
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Buscar..."
-              className="form-control text-sm w-full"
-              onKeyDown={(e) => e.key === "Enter" && handleFilter()}
-            />
+            <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar..." className="form-control text-sm w-full" onKeyDown={(e) => e.key === "Enter" && handleFilter()} />
           </div>
-          <Button variant="primary" onClick={handleFilter} className="flex items-center gap-2 h-9">
+          <Button variant="primary" onClick={handleFilter} disabled={isLoading} className="flex items-center gap-2 h-9">
             <Lucide icon="Search" className="w-4 h-4" />
             Buscar
           </Button>
         </div>
       </div>
 
-      {/* Estado de carga / error */}
-      {adminStatus === "loading" && (
-        <div className="flex justify-center py-10">
-          <LoadingIcon icon="three-dots" className="w-10 h-10" />
-        </div>
-      )}
-      {adminStatus === "failed" && (
-        <div className="box p-4 text-danger text-sm">{adminErrorMessage}</div>
-      )}
+      {/* Estado */}
+      {isLoading && <div className="flex justify-center py-10"><LoadingIcon icon="three-dots" className="w-10 h-10" /></div>}
+      {adminStatus === "failed" && <div className="box p-4 text-danger text-sm">{adminErrorMessage}</div>}
 
       {/* Tabla */}
       {adminStatus !== "loading" && (
@@ -265,9 +221,7 @@ export default function GmailInboxPage() {
               <Table.Tbody>
                 {adminEmails.length === 0 ? (
                   <Table.Tr>
-                    <Table.Td colSpan={9} className="text-center text-slate-400 py-6">
-                      Sin resultados
-                    </Table.Td>
+                    <Table.Td colSpan={9} className="text-center text-slate-400 py-6">Sin resultados</Table.Td>
                   </Table.Tr>
                 ) : (
                   adminEmails.map((email) => (
@@ -287,10 +241,7 @@ export default function GmailInboxPage() {
                           </Button>
                         </Table.Td>
                         <Table.Td className="cursor-pointer" onClick={() => toggleExpand(email.id)}>
-                          <Lucide
-                            icon={expandedId === email.id ? "ChevronDown" : "ChevronRight"}
-                            className="w-4 h-4 text-slate-400"
-                          />
+                          <Lucide icon={expandedId === email.id ? "ChevronDown" : "ChevronRight"} className="w-4 h-4 text-slate-400" />
                         </Table.Td>
                         <Table.Td className="text-xs" style={{ minWidth: 160, maxWidth: 200 }}>
                           {email.customer ? (
@@ -315,36 +266,26 @@ export default function GmailInboxPage() {
                         <Table.Td className="text-center">
                           <select
                             value={email.type ?? ""}
-                            onChange={(e) => {
-                              e.stopPropagation();
-                              dispatch(updateGmailTypeThunk({ id: email.id, type: e.target.value }));
-                            }}
+                            onChange={(e) => { e.stopPropagation(); dispatch(updateGmailTypeThunk({ id: email.id, type: e.target.value })); }}
                             onClick={(e) => e.stopPropagation()}
                             className={`text-xs rounded-full px-2 py-0.5 font-medium border-0 cursor-pointer focus:ring-1 focus:ring-primary ${
-                              email.type === "WEB-FORM"
-                                ? "bg-success/10 text-success"
-                                : email.type === "SPAM"
-                                ? "bg-danger/10 text-danger"
-                                : "bg-slate-100 text-slate-400"
+                              email.type === "WEB-FORM" ? "bg-success/10 text-success" :
+                              email.type === "SPAM"     ? "bg-danger/10 text-danger" :
+                              "bg-slate-100 text-slate-400"
                             }`}
                           >
                             <option value="WEB-FORM">WEB-FORM</option>
                             <option value="SPAM">SPAM</option>
                           </select>
                         </Table.Td>
-                        <Table.Td>
-                          <SourceBadge source={email.source} />
-                        </Table.Td>
+                        <Table.Td><SourceBadge source={email.source} /></Table.Td>
                         <Table.Td className="text-center">
-                          {email.hasAttachments ? (
-                            <Lucide icon="Paperclip" className="w-4 h-4 text-primary mx-auto" />
-                          ) : (
-                            <span className="text-slate-300">—</span>
-                          )}
+                          {email.hasAttachments
+                            ? <Lucide icon="Paperclip" className="w-4 h-4 text-primary mx-auto" />
+                            : <span className="text-slate-300">—</span>}
                         </Table.Td>
                       </Table.Tr>
 
-                      {/* Cuerpo expandido */}
                       {expandedId === email.id && (
                         <Table.Tr key={`${email.id}-body`}>
                           <Table.Td colSpan={9} className="bg-slate-50 dark:bg-darkmode-500 p-4">
@@ -352,10 +293,7 @@ export default function GmailInboxPage() {
                               <span className="font-medium">Cuenta Gmail:</span> {email.gmailAccount}
                             </div>
                             {email.bodyHtml ? (
-                              <div
-                                className="text-sm prose max-w-none overflow-auto max-h-96 bg-white dark:bg-darkmode-600 rounded p-3"
-                                dangerouslySetInnerHTML={{ __html: email.bodyHtml }}
-                              />
+                              <div className="text-sm prose max-w-none overflow-auto max-h-96 bg-white dark:bg-darkmode-600 rounded p-3" dangerouslySetInnerHTML={{ __html: email.bodyHtml }} />
                             ) : (
                               <pre className="text-sm whitespace-pre-wrap bg-white dark:bg-darkmode-600 rounded p-3 max-h-96 overflow-auto">
                                 {email.bodyText || email.snippet || "(sin contenido)"}
@@ -371,65 +309,36 @@ export default function GmailInboxPage() {
             </Table>
           </div>
 
-          {/* Paginación */}
+          {/* Paginación — solo Anterior / Siguiente */}
           <div className="flex items-center justify-between mt-4">
-            {/* Info */}
-            <div className="text-xs text-slate-400">
-              Página {currentPage + 1}{adminNextToken ? "+" : ` de ${totalKnownPages}`}
-              {" · "}{adminEmails.length} registros
-            </div>
+            <span className="text-xs text-slate-400">
+              Página {currentPage + 1}{!hasNext ? " · última" : ""} · {adminEmails.length} registros
+            </span>
 
-            {/* Controles */}
-            <div className="flex items-center gap-1">
-              {/* Anterior */}
+            <div className="flex items-center gap-2">
               <button
                 onClick={handlePrev}
-                disabled={currentPage === 0}
-                className="flex items-center justify-center w-8 h-8 rounded border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                disabled={!hasPrev}
+                className="flex items-center gap-1.5 px-3 h-8 rounded border border-slate-200 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
-                <Lucide icon="ChevronLeft" className="w-4 h-4" />
+                <Lucide icon="ChevronLeft" className="w-3.5 h-3.5" />
+                Anterior
               </button>
 
-              {/* Números de páginas visitadas */}
-              {tokenHistory.map((_, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => handleGoToPage(idx)}
-                  className={`flex items-center justify-center w-8 h-8 rounded border text-xs font-medium transition-colors ${
-                    idx === currentPage
-                      ? "bg-primary text-white border-primary"
-                      : "border-slate-200 text-slate-500 hover:bg-slate-50"
-                  }`}
-                >
-                  {idx + 1}
-                </button>
-              ))}
-
-              {/* Indicador de más páginas */}
-              {adminNextToken && (
-                <span className="flex items-center justify-center w-8 h-8 text-xs text-slate-400">
-                  ...
-                </span>
-              )}
-
-              {/* Siguiente */}
               <button
                 onClick={handleNext}
-                disabled={!adminNextToken}
-                className="flex items-center justify-center w-8 h-8 rounded border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                disabled={!hasNext}
+                className="flex items-center gap-1.5 px-3 h-8 rounded border border-slate-200 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
-                <Lucide icon="ChevronRight" className="w-4 h-4" />
+                Siguiente
+                <Lucide icon="ChevronRight" className="w-3.5 h-3.5" />
               </button>
             </div>
           </div>
         </>
       )}
 
-      <CustomerActionSlideover
-        email={actionEmail}
-        open={actionOpen}
-        onClose={handleCloseAction}
-      />
+      <CustomerActionSlideover email={actionEmail} open={actionOpen} onClose={handleCloseAction} />
     </div>
   );
 }
