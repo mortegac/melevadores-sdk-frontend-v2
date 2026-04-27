@@ -267,7 +267,7 @@ export default function GmailSyncLogsPage() {
               </span>
             )}
           </div>
-          <Button variant="outline-secondary" size="sm" disabled={isSyncing || loading} onClick={handleSync}>
+          <Button variant="outline-primary" size="sm" disabled={isSyncing || loading} onClick={handleSync} className="bg-white">
             <Lucide icon="RefreshCw" className={`w-3.5 h-3.5 mr-1.5 ${isSyncing ? "animate-spin" : ""}`} />
             {isSyncing ? "Sincronizando..." : "Sincronizar Gmail"}
           </Button>
