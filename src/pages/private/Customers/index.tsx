@@ -189,18 +189,20 @@ export default function CustomersPage() {
     if (!result.type.endsWith("/rejected")) setDeleteTarget(null);
   }, [dispatch, deleteTarget]);
 
-  const filtered = customers.filter((c) => {
-    if (statusFilter !== "all" && c.status !== statusFilter) return false;
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      return (
-        c.name?.toLowerCase().includes(q) ||
-        c.email?.toLowerCase().includes(q) ||
-        c.phone?.toLowerCase().includes(q)
-      );
-    }
-    return true;
-  });
+  const filtered = customers
+    .filter((c) => {
+      if (statusFilter !== "all" && c.status !== statusFilter) return false;
+      if (search.trim()) {
+        const q = search.toLowerCase();
+        return (
+          c.name?.toLowerCase().includes(q) ||
+          c.email?.toLowerCase().includes(q) ||
+          c.phone?.toLowerCase().includes(q)
+        );
+      }
+      return true;
+    })
+    .sort((a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? ""));
 
   return (
     <div className="mt-5">
