@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import Table from "@/components/Base/Table";
 import Lucide from "@/components/Base/Lucide";
 import Button from "@/components/Base/Button";
@@ -63,15 +63,23 @@ export default function GmailInboxAdmin() {
   const [actionEmail, setActionEmail] = useState<GmailInbox | null>(null);
   const [actionSlideoverOpen, setActionSlideoverOpen] = useState(false);
 
-  // Pagination
+  // Pagination — tokenPages[i] is the nextToken needed to load page i
+  // tokenPages[0] = null (first page, no token needed)
+  // tokenPages[1] = token returned after page 0
+  // tokenPages[2] = token returned after page 1 ... etc.
   const [tokenPages, setTokenPages] = useState<(string | null)[]>([null]);
   const [pageIdx, setPageIdx] = useState(0);
+
+  // Ref that holds active filters so fetchPage can access them without stale closure
   const activeFilters = useRef({ dateFrom: defaultDateFrom(), dateTo: defaultDateTo(), searchText: "" });
   const pendingRef = useRef(false);
 
   const isLoading = adminStatus === "loading";
   const isSyncing = syncStatus === "syncing";
+  const hasNext   = !!adminNextToken && !isLoading;
+  const hasPrev   = pageIdx > 0 && !isLoading;
 
+  // ── Core fetch — uses stored filters unless overridden ─────────────────────
   const fetchPage = useCallback(
     (token: string | null, filters?: { dateFrom: string; dateTo: string; searchText: string }) => {
       if (pendingRef.current || isLoading) return;
@@ -79,10 +87,10 @@ export default function GmailInboxAdmin() {
       const f = filters ?? activeFilters.current;
       dispatch(
         getGmailInboxPage({
-          dateFrom: f.dateFrom,
-          dateTo:   f.dateTo,
+          dateFrom:   f.dateFrom,
+          dateTo:     f.dateTo,
           searchText: f.searchText.trim() || undefined,
-          nextToken: token,
+          nextToken:  token,
         })
       ).finally(() => {
         pendingRef.current = false;
@@ -91,6 +99,13 @@ export default function GmailInboxAdmin() {
     [dispatch, isLoading]
   );
 
+  // ── Load first page on mount ───────────────────────────────────────────────
+  useEffect(() => {
+    fetchPage(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ── Search: reset pagination and fetch first page ─────────────────────────
   const handleSearch = useCallback(() => {
     const filters = { dateFrom, dateTo, searchText };
     activeFilters.current = filters;
@@ -99,9 +114,11 @@ export default function GmailInboxAdmin() {
     fetchPage(null, filters);
   }, [dateFrom, dateTo, searchText, fetchPage]);
 
+  // ── Next page: store current nextToken and fetch ───────────────────────────
   const handleNextPage = useCallback(() => {
     if (!adminNextToken || isLoading) return;
     const nextIdx = pageIdx + 1;
+    // Store the token so we can come back to this page later
     setTokenPages((prev) => {
       const updated = [...prev];
       updated[nextIdx] = adminNextToken;
@@ -111,6 +128,7 @@ export default function GmailInboxAdmin() {
     fetchPage(adminNextToken);
   }, [adminNextToken, isLoading, pageIdx, fetchPage]);
 
+  // ── Prev page: use stored token — re-fetches the previous page ────────────
   const handlePrevPage = useCallback(() => {
     if (pageIdx === 0 || isLoading) return;
     const prevIdx = pageIdx - 1;
@@ -118,15 +136,7 @@ export default function GmailInboxAdmin() {
     fetchPage(tokenPages[prevIdx] ?? null);
   }, [pageIdx, isLoading, tokenPages, fetchPage]);
 
-  const handleGoToPage = useCallback(
-    (idx: number) => {
-      if (isLoading || idx === pageIdx || (!tokenPages[idx] && idx !== 0)) return;
-      setPageIdx(idx);
-      fetchPage(tokenPages[idx] ?? null);
-    },
-    [isLoading, pageIdx, tokenPages, fetchPage]
-  );
-
+  // ── Sync + reload ──────────────────────────────────────────────────────────
   const handleSync = useCallback(() => {
     if (pendingRef.current || isSyncing || isLoading) return;
     pendingRef.current = true;
@@ -136,27 +146,13 @@ export default function GmailInboxAdmin() {
     });
   }, [dispatch, isSyncing, isLoading, handleSearch]);
 
-  const handleOpenEmail = useCallback((email: GmailInbox) => {
-    setSelectedEmail(email);
-    setEmailSlideoverOpen(true);
-  }, []);
-
+  // ── Slideovers ─────────────────────────────────────────────────────────────
+  const handleOpenEmail  = useCallback((email: GmailInbox) => { setSelectedEmail(email); setEmailSlideoverOpen(true); }, []);
   const handleCloseEmail = useCallback(() => setEmailSlideoverOpen(false), []);
-  const handleReplySent = useCallback(() => {
-    setEmailSlideoverOpen(false);
-    handleSearch();
-  }, [handleSearch]);
+  const handleReplySent  = useCallback(() => { setEmailSlideoverOpen(false); handleSearch(); }, [handleSearch]);
 
-  const handleOpenAction = useCallback((email: GmailInbox) => {
-    setActionEmail(email);
-    setActionSlideoverOpen(true);
-  }, []);
-
+  const handleOpenAction  = useCallback((email: GmailInbox) => { setActionEmail(email); setActionSlideoverOpen(true); }, []);
   const handleCloseAction = useCallback(() => setActionSlideoverOpen(false), []);
-
-  const knownPages = tokenPages.length;
-  const hasNext = !!adminNextToken && !isLoading;
-  const hasPrev = pageIdx > 0 && !isLoading;
 
   return (
     <div className="mt-5">
@@ -182,7 +178,7 @@ export default function GmailInboxAdmin() {
         </Button>
       </div>
 
-      {/* Filters — using date inputs (YYYY-MM-DD = dateStr) */}
+      {/* Filters */}
       <div className="flex flex-col p-5 box mb-5">
         <div className="flex flex-wrap gap-4 items-end">
           <div className="flex flex-col gap-1">
@@ -243,25 +239,23 @@ export default function GmailInboxAdmin() {
         {!isLoading && adminStatus === "idle" && adminEmails.length === 0 && (
           <div className="flex flex-col items-center justify-center py-16">
             <Lucide icon="Inbox" className="w-14 h-14 text-slate-200 stroke-[0.5]" />
-            <p className="mt-3 text-slate-400">Usa los filtros para buscar emails.</p>
+            <p className="mt-3 text-slate-400">Sin emails en el rango seleccionado.</p>
           </div>
         )}
 
         {!isLoading && adminStatus === "idle" && adminEmails.length > 0 && (
           <>
+            {/* Top pagination bar */}
             <div className="flex items-center justify-between mb-3">
               <span className="text-xs text-slate-400">
-                {adminEmails.length} email{adminEmails.length !== 1 ? "s" : ""} — página {pageIdx + 1}
-                {!hasNext && " (última)"}
+                {adminEmails.length} email{adminEmails.length !== 1 ? "s" : ""} en esta página
               </span>
-              <ServerPagination
+              <PrevNextPagination
                 pageIdx={pageIdx}
-                knownPages={knownPages}
                 hasNext={hasNext}
                 hasPrev={hasPrev}
                 onPrev={handlePrevPage}
                 onNext={handleNextPage}
-                onGoTo={handleGoToPage}
               />
             </div>
 
@@ -333,15 +327,14 @@ export default function GmailInboxAdmin() {
               </Table>
             </div>
 
+            {/* Bottom pagination bar */}
             <div className="flex justify-center mt-5">
-              <ServerPagination
+              <PrevNextPagination
                 pageIdx={pageIdx}
-                knownPages={knownPages}
                 hasNext={hasNext}
                 hasPrev={hasPrev}
                 onPrev={handlePrevPage}
                 onNext={handleNextPage}
-                onGoTo={handleGoToPage}
               />
             </div>
           </>
@@ -366,62 +359,42 @@ export default function GmailInboxAdmin() {
   );
 }
 
-/* ── ServerPagination ──────────────────────────────────────────────────────── */
-interface ServerPaginationProps {
-  pageIdx: number;
-  knownPages: number;
-  hasNext: boolean;
-  hasPrev: boolean;
-  onPrev: () => void;
-  onNext: () => void;
-  onGoTo: (idx: number) => void;
+/* ── PrevNextPagination ────────────────────────────────────────────────────── */
+interface PrevNextPaginationProps {
+  pageIdx:  number;
+  hasNext:  boolean;
+  hasPrev:  boolean;
+  onPrev:   () => void;
+  onNext:   () => void;
 }
 
-function ServerPagination({ pageIdx, knownPages, hasNext, hasPrev, onPrev, onNext, onGoTo }: ServerPaginationProps) {
-  const btnBase =
-    "flex items-center justify-center w-8 h-8 rounded border text-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed";
-
-  const visitedPages = Array.from({ length: knownPages }, (_, i) => i);
+function PrevNextPagination({ pageIdx, hasNext, hasPrev, onPrev, onNext }: PrevNextPaginationProps) {
+  const btn =
+    "flex items-center gap-1.5 px-3 h-8 rounded border text-xs font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed";
 
   return (
-    <div className="flex items-center gap-1">
+    <div className="flex items-center gap-2">
       <button
         disabled={!hasPrev}
         onClick={onPrev}
-        className={`${btnBase} border-slate-200 text-slate-500 hover:bg-slate-50`}
+        className={`${btn} border-slate-200 text-slate-600 hover:bg-slate-50`}
       >
-        <Lucide icon="ChevronLeft" className="w-4 h-4" />
+        <Lucide icon="ChevronLeft" className="w-3.5 h-3.5" />
+        Anterior
       </button>
 
-      {visitedPages.map((idx) => (
-        <button
-          key={idx}
-          onClick={() => onGoTo(idx)}
-          className={`${btnBase} ${
-            idx === pageIdx
-              ? "bg-theme-1 border-theme-1 text-white"
-              : "border-slate-200 text-slate-600 hover:bg-slate-50"
-          }`}
-        >
-          {idx + 1}
-        </button>
-      ))}
-
-      {hasNext && (
-        <button
-          onClick={onNext}
-          className={`${btnBase} border-slate-200 text-slate-600 hover:bg-slate-50`}
-        >
-          {knownPages + 1}
-        </button>
-      )}
+      <span className="text-xs text-slate-400 px-1">
+        Página {pageIdx + 1}
+        {!hasNext && " · última"}
+      </span>
 
       <button
         disabled={!hasNext}
         onClick={onNext}
-        className={`${btnBase} border-slate-200 text-slate-500 hover:bg-slate-50`}
+        className={`${btn} border-slate-200 text-slate-600 hover:bg-slate-50`}
       >
-        <Lucide icon="ChevronRight" className="w-4 h-4" />
+        Siguiente
+        <Lucide icon="ChevronRight" className="w-3.5 h-3.5" />
       </button>
     </div>
   );
