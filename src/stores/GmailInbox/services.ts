@@ -32,8 +32,9 @@ export const fetchGmailInboxPage = async (params: AdminFilterOptions): Promise<A
   const now = new Date();
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-  const dateFrom = params.dateFrom ?? thirtyDaysAgo.toISOString();
-  const dateTo   = params.dateTo   ?? now.toISOString();
+  // dateStr stores "YYYY-MM-DD" — slice ISO timestamps to match the stored format
+  const dateFrom = (params.dateFrom ?? thirtyDaysAgo.toISOString()).slice(0, 10);
+  const dateTo   = (params.dateTo   ?? now.toISOString()).slice(0, 10);
 
   const filter: any = {
     dateStr: { between: [dateFrom, dateTo] },

@@ -37,6 +37,123 @@
     "model_introspection": {
       "version": 1,
       "models": {
+        "v2Action": {
+          "name": "v2Action",
+          "fields": {
+            "id": {
+              "name": "id",
+              "isArray": false,
+              "type": "ID",
+              "isRequired": true,
+              "attributes": []
+            },
+            "status": {
+              "name": "status",
+              "isArray": false,
+              "type": "String",
+              "isRequired": true,
+              "attributes": []
+            },
+            "message": {
+              "name": "message",
+              "isArray": false,
+              "type": "String",
+              "isRequired": true,
+              "attributes": []
+            },
+            "urlDocument": {
+              "name": "urlDocument",
+              "isArray": false,
+              "type": "String",
+              "isRequired": false,
+              "attributes": []
+            },
+            "userId": {
+              "name": "userId",
+              "isArray": false,
+              "type": "String",
+              "isRequired": false,
+              "attributes": []
+            },
+            "customerId": {
+              "name": "customerId",
+              "isArray": false,
+              "type": "ID",
+              "isRequired": true,
+              "attributes": []
+            },
+            "customer": {
+              "name": "customer",
+              "isArray": false,
+              "type": {
+                "model": "v2Customer"
+              },
+              "isRequired": false,
+              "attributes": [],
+              "association": {
+                "connectionType": "BELONGS_TO",
+                "targetNames": [
+                  "customerId"
+                ]
+              }
+            },
+            "createdAt": {
+              "name": "createdAt",
+              "isArray": false,
+              "type": "AWSDateTime",
+              "isRequired": false,
+              "attributes": [],
+              "isReadOnly": true
+            },
+            "updatedAt": {
+              "name": "updatedAt",
+              "isArray": false,
+              "type": "AWSDateTime",
+              "isRequired": false,
+              "attributes": [],
+              "isReadOnly": true
+            }
+          },
+          "syncable": true,
+          "pluralName": "v2Actions",
+          "attributes": [
+            {
+              "type": "model",
+              "properties": {}
+            },
+            {
+              "type": "key",
+              "properties": {
+                "name": "byCustomer",
+                "queryField": "listV2ActionByCustomerId",
+                "fields": [
+                  "customerId"
+                ]
+              }
+            },
+            {
+              "type": "auth",
+              "properties": {
+                "rules": [
+                  {
+                    "allow": "private",
+                    "operations": [
+                      "create",
+                      "update",
+                      "delete",
+                      "read"
+                    ]
+                  }
+                ]
+              }
+            }
+          ],
+          "primaryKeyInfo": {
+            "isCustomPrimaryKey": false,
+            "primaryKeyFieldName": "id",
+            "sortKeyFieldNames": []
+          }
+        },
         "v2Customer": {
           "name": "v2Customer",
           "fields": {
@@ -82,11 +199,66 @@
               "isRequired": false,
               "attributes": []
             },
+            "requestDate": {
+              "name": "requestDate",
+              "isArray": false,
+              "type": "String",
+              "isRequired": false,
+              "attributes": []
+            },
             "messages": {
               "name": "messages",
               "isArray": true,
               "type": {
                 "model": "v2Message"
+              },
+              "isRequired": false,
+              "attributes": [],
+              "isArrayNullable": true,
+              "association": {
+                "connectionType": "HAS_MANY",
+                "associatedWith": [
+                  "customerId"
+                ]
+              }
+            },
+            "inboxItems": {
+              "name": "inboxItems",
+              "isArray": true,
+              "type": {
+                "model": "v2GmailInbox"
+              },
+              "isRequired": false,
+              "attributes": [],
+              "isArrayNullable": true,
+              "association": {
+                "connectionType": "HAS_MANY",
+                "associatedWith": [
+                  "customerId"
+                ]
+              }
+            },
+            "actions": {
+              "name": "actions",
+              "isArray": true,
+              "type": {
+                "model": "v2CustomerAction"
+              },
+              "isRequired": false,
+              "attributes": [],
+              "isArrayNullable": true,
+              "association": {
+                "connectionType": "HAS_MANY",
+                "associatedWith": [
+                  "customerId"
+                ]
+              }
+            },
+            "v2Actions": {
+              "name": "v2Actions",
+              "isArray": true,
+              "type": {
+                "model": "v2Action"
               },
               "isRequired": false,
               "attributes": [],
@@ -239,6 +411,131 @@
                 "queryField": "listV2MessageByCustomerId",
                 "fields": [
                   "customerId"
+                ]
+              }
+            },
+            {
+              "type": "auth",
+              "properties": {
+                "rules": [
+                  {
+                    "allow": "private",
+                    "operations": [
+                      "create",
+                      "update",
+                      "delete",
+                      "read"
+                    ]
+                  }
+                ]
+              }
+            }
+          ],
+          "primaryKeyInfo": {
+            "isCustomPrimaryKey": false,
+            "primaryKeyFieldName": "id",
+            "sortKeyFieldNames": []
+          }
+        },
+        "v2CustomerAction": {
+          "name": "v2CustomerAction",
+          "fields": {
+            "id": {
+              "name": "id",
+              "isArray": false,
+              "type": "ID",
+              "isRequired": true,
+              "attributes": []
+            },
+            "customerId": {
+              "name": "customerId",
+              "isArray": false,
+              "type": "ID",
+              "isRequired": true,
+              "attributes": []
+            },
+            "detail": {
+              "name": "detail",
+              "isArray": false,
+              "type": "String",
+              "isRequired": true,
+              "attributes": []
+            },
+            "date": {
+              "name": "date",
+              "isArray": false,
+              "type": "String",
+              "isRequired": true,
+              "attributes": []
+            },
+            "userId": {
+              "name": "userId",
+              "isArray": false,
+              "type": "ID",
+              "isRequired": false,
+              "attributes": []
+            },
+            "status": {
+              "name": "status",
+              "isArray": false,
+              "type": "String",
+              "isRequired": true,
+              "attributes": []
+            },
+            "docUrl": {
+              "name": "docUrl",
+              "isArray": false,
+              "type": "String",
+              "isRequired": false,
+              "attributes": []
+            },
+            "customer": {
+              "name": "customer",
+              "isArray": false,
+              "type": {
+                "model": "v2Customer"
+              },
+              "isRequired": false,
+              "attributes": [],
+              "association": {
+                "connectionType": "BELONGS_TO",
+                "targetNames": [
+                  "customerId"
+                ]
+              }
+            },
+            "createdAt": {
+              "name": "createdAt",
+              "isArray": false,
+              "type": "AWSDateTime",
+              "isRequired": false,
+              "attributes": [],
+              "isReadOnly": true
+            },
+            "updatedAt": {
+              "name": "updatedAt",
+              "isArray": false,
+              "type": "AWSDateTime",
+              "isRequired": false,
+              "attributes": [],
+              "isReadOnly": true
+            }
+          },
+          "syncable": true,
+          "pluralName": "v2CustomerActions",
+          "attributes": [
+            {
+              "type": "model",
+              "properties": {}
+            },
+            {
+              "type": "key",
+              "properties": {
+                "name": "byCustomerDate",
+                "queryField": "listV2CustomerActionByCustomerIdAndDate",
+                "fields": [
+                  "customerId",
+                  "date"
                 ]
               }
             },
@@ -663,6 +960,42 @@
               "isRequired": true,
               "attributes": []
             },
+            "type": {
+              "name": "type",
+              "isArray": false,
+              "type": "String",
+              "isRequired": false,
+              "attributes": []
+            },
+            "source": {
+              "name": "source",
+              "isArray": false,
+              "type": "String",
+              "isRequired": false,
+              "attributes": []
+            },
+            "customerId": {
+              "name": "customerId",
+              "isArray": false,
+              "type": "ID",
+              "isRequired": false,
+              "attributes": []
+            },
+            "customer": {
+              "name": "customer",
+              "isArray": false,
+              "type": {
+                "model": "v2Customer"
+              },
+              "isRequired": false,
+              "attributes": [],
+              "association": {
+                "connectionType": "BELONGS_TO",
+                "targetNames": [
+                  "customerId"
+                ]
+              }
+            },
             "userId": {
               "name": "userId",
               "isArray": false,
@@ -754,6 +1087,17 @@
             {
               "type": "key",
               "properties": {
+                "name": "byCustomerId",
+                "queryField": "listV2GmailInboxByCustomerIdAndDateSent",
+                "fields": [
+                  "customerId",
+                  "dateSent"
+                ]
+              }
+            },
+            {
+              "type": "key",
+              "properties": {
                 "name": "byUserId",
                 "queryField": "listV2GmailInboxByUserIdAndDateSent",
                 "fields": [
@@ -761,6 +1105,105 @@
                   "dateSent"
                 ]
               }
+            },
+            {
+              "type": "auth",
+              "properties": {
+                "rules": [
+                  {
+                    "allow": "private",
+                    "operations": [
+                      "create",
+                      "update",
+                      "delete",
+                      "read"
+                    ]
+                  }
+                ]
+              }
+            }
+          ],
+          "primaryKeyInfo": {
+            "isCustomPrimaryKey": false,
+            "primaryKeyFieldName": "id",
+            "sortKeyFieldNames": []
+          }
+        },
+        "v2GmailSyncLog": {
+          "name": "v2GmailSyncLog",
+          "fields": {
+            "id": {
+              "name": "id",
+              "isArray": false,
+              "type": "ID",
+              "isRequired": true,
+              "attributes": []
+            },
+            "executedAt": {
+              "name": "executedAt",
+              "isArray": false,
+              "type": "AWSDateTime",
+              "isRequired": true,
+              "attributes": []
+            },
+            "status": {
+              "name": "status",
+              "isArray": false,
+              "type": "String",
+              "isRequired": true,
+              "attributes": []
+            },
+            "errorMessage": {
+              "name": "errorMessage",
+              "isArray": false,
+              "type": "String",
+              "isRequired": false,
+              "attributes": []
+            },
+            "newEmailsStored": {
+              "name": "newEmailsStored",
+              "isArray": false,
+              "type": "Int",
+              "isRequired": true,
+              "attributes": []
+            },
+            "emailsRead": {
+              "name": "emailsRead",
+              "isArray": false,
+              "type": "Int",
+              "isRequired": true,
+              "attributes": []
+            },
+            "gmailAccount": {
+              "name": "gmailAccount",
+              "isArray": false,
+              "type": "String",
+              "isRequired": false,
+              "attributes": []
+            },
+            "createdAt": {
+              "name": "createdAt",
+              "isArray": false,
+              "type": "AWSDateTime",
+              "isRequired": false,
+              "attributes": [],
+              "isReadOnly": true
+            },
+            "updatedAt": {
+              "name": "updatedAt",
+              "isArray": false,
+              "type": "AWSDateTime",
+              "isRequired": false,
+              "attributes": [],
+              "isReadOnly": true
+            }
+          },
+          "syncable": true,
+          "pluralName": "v2GmailSyncLogs",
+          "attributes": [
+            {
+              "type": "model",
+              "properties": {}
             },
             {
               "type": "auth",
@@ -2928,13 +3371,6 @@
               "isRequired": false,
               "attributes": []
             },
-            "urlWebpay": {
-              "name": "urlWebpay",
-              "isArray": false,
-              "type": "String",
-              "isRequired": false,
-              "attributes": []
-            },
             "amount": {
               "name": "amount",
               "isArray": false,
@@ -4213,128 +4649,6 @@
             }
           }
         },
-        "v2WebpayStartResult": {
-          "name": "v2WebpayStartResult",
-          "fields": {
-            "token": {
-              "name": "token",
-              "isArray": false,
-              "type": "String",
-              "isRequired": true,
-              "attributes": []
-            },
-            "url": {
-              "name": "url",
-              "isArray": false,
-              "type": "String",
-              "isRequired": true,
-              "attributes": []
-            },
-            "orden": {
-              "name": "orden",
-              "isArray": false,
-              "type": "Int",
-              "isRequired": true,
-              "attributes": []
-            }
-          }
-        },
-        "v2WebpayTransactionResult": {
-          "name": "v2WebpayTransactionResult",
-          "fields": {
-            "status": {
-              "name": "status",
-              "isArray": false,
-              "type": "String",
-              "isRequired": false,
-              "attributes": []
-            },
-            "buy_order": {
-              "name": "buy_order",
-              "isArray": false,
-              "type": "String",
-              "isRequired": false,
-              "attributes": []
-            },
-            "session_id": {
-              "name": "session_id",
-              "isArray": false,
-              "type": "String",
-              "isRequired": false,
-              "attributes": []
-            },
-            "amount": {
-              "name": "amount",
-              "isArray": false,
-              "type": "Float",
-              "isRequired": false,
-              "attributes": []
-            },
-            "transaction_date": {
-              "name": "transaction_date",
-              "isArray": false,
-              "type": "String",
-              "isRequired": false,
-              "attributes": []
-            },
-            "accounting_date": {
-              "name": "accounting_date",
-              "isArray": false,
-              "type": "String",
-              "isRequired": false,
-              "attributes": []
-            },
-            "authorization_code": {
-              "name": "authorization_code",
-              "isArray": false,
-              "type": "String",
-              "isRequired": false,
-              "attributes": []
-            },
-            "payment_type_code": {
-              "name": "payment_type_code",
-              "isArray": false,
-              "type": "String",
-              "isRequired": false,
-              "attributes": []
-            },
-            "response_code": {
-              "name": "response_code",
-              "isArray": false,
-              "type": "Int",
-              "isRequired": false,
-              "attributes": []
-            },
-            "installments_number": {
-              "name": "installments_number",
-              "isArray": false,
-              "type": "Int",
-              "isRequired": false,
-              "attributes": []
-            },
-            "installments_amount": {
-              "name": "installments_amount",
-              "isArray": false,
-              "type": "Float",
-              "isRequired": false,
-              "attributes": []
-            },
-            "vci": {
-              "name": "vci",
-              "isArray": false,
-              "type": "String",
-              "isRequired": false,
-              "attributes": []
-            },
-            "card_number": {
-              "name": "card_number",
-              "isArray": false,
-              "type": "String",
-              "isRequired": false,
-              "attributes": []
-            }
-          }
-        },
         "v2CognitoCreateUserResult": {
           "name": "v2CognitoCreateUserResult",
           "fields": {
@@ -4481,72 +4795,6 @@
             },
             "type": {
               "name": "type",
-              "isArray": false,
-              "type": "String",
-              "isRequired": true
-            }
-          }
-        },
-        "v2WebpayStart": {
-          "name": "v2WebpayStart",
-          "isArray": false,
-          "type": {
-            "nonModel": "v2WebpayStartResult"
-          },
-          "isRequired": false,
-          "arguments": {
-            "amount": {
-              "name": "amount",
-              "isArray": false,
-              "type": "Float",
-              "isRequired": true
-            },
-            "userId": {
-              "name": "userId",
-              "isArray": false,
-              "type": "String",
-              "isRequired": true
-            },
-            "glosa": {
-              "name": "glosa",
-              "isArray": false,
-              "type": "String",
-              "isRequired": true
-            },
-            "cartId": {
-              "name": "cartId",
-              "isArray": false,
-              "type": "String",
-              "isRequired": true
-            }
-          }
-        },
-        "v2WebpayCommit": {
-          "name": "v2WebpayCommit",
-          "isArray": false,
-          "type": {
-            "nonModel": "v2WebpayTransactionResult"
-          },
-          "isRequired": false,
-          "arguments": {
-            "token": {
-              "name": "token",
-              "isArray": false,
-              "type": "String",
-              "isRequired": true
-            }
-          }
-        },
-        "v2WebpayStatus": {
-          "name": "v2WebpayStatus",
-          "isArray": false,
-          "type": {
-            "nonModel": "v2WebpayTransactionResult"
-          },
-          "isRequired": false,
-          "arguments": {
-            "token": {
-              "name": "token",
               "isArray": false,
               "type": "String",
               "isRequired": true

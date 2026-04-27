@@ -1,6 +1,6 @@
 {
   "name": "melevadores",
-  "version": "1.0.31",
+  "version": "1.0.34",
   "private": true,
   "type": "module",
   "scripts": {
@@ -9,8 +9,8 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "prebuild": "npm version patch --no-git-tag-version",
-    "generate:config": "cd ../melevadores-sdk-backend-v2/amplify && npx ampx generate outputs --stack amplify-backoffice-manu-sandbox-0b1ca78abf --profile miniswimmer --format json --out-dir ../../melevadores-sdk-frontend-v2",
-    "generate:graphql": "cd ../melevadores-sdk-backend-v2/amplify && npx ampx generate graphql-client-code --stack amplify-backoffice-manu-sandbox-0b1ca78abf --profile miniswimmer --format graphql-codegen --out ../../melevadores-sdk-frontend-v2/src/graphql"
+    "generate:config": "cd ../melevadores-sdk-backend-v2/amplify && npx ampx generate outputs --stack amplify-backoffice-manu-sandbox-0b1ca78abf --profile melevadores-prod --format json --out-dir ../../melevadores-sdk-frontend-v2",
+    "generate:graphql": "cd ../melevadores-sdk-backend-v2/amplify && npx ampx generate graphql-client-code --stack amplify-backoffice-manu-sandbox-0b1ca78abf --profile melevadores-prod --format graphql-codegen --out ../../melevadores-sdk-frontend-v2/src/graphql"
   },
   "dependencies": {
     "@formkit/tempo": "^0.1.2",
