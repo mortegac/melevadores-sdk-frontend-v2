@@ -26,7 +26,10 @@ export const sendGmailReply = async (params: GmailReplyParams): Promise<{ succes
   return result?.data?.v2GmailReply ?? { success: false, error: "No response" };
 };
 
-const ADMIN_PAGE_SIZE = 100;
+// DynamoDB reads this many raw records per request before applying the filter.
+// Higher = fewer API calls needed to find matching items; lower = faster first byte.
+// With ~2000 emails total, one request at 2000 is enough to cover any date range.
+const DYNAMO_SCAN_LIMIT = 2000;
 
 export const fetchGmailInboxPage = async (params: AdminFilterOptions): Promise<AdminPageResult> => {
   const now = new Date();
@@ -40,7 +43,6 @@ export const fetchGmailInboxPage = async (params: AdminFilterOptions): Promise<A
     dateStr: { between: [dateFrom, dateTo] },
   };
 
-  // Apply type filter when not "ALL"
   if (params.type && params.type !== "ALL") {
     filter.type = { eq: params.type };
   }
@@ -54,24 +56,18 @@ export const fetchGmailInboxPage = async (params: AdminFilterOptions): Promise<A
     ];
   }
 
-  // DynamoDB applies filters AFTER scanning `limit` records, so a single request
-  // may return far fewer items than requested. We loop until we accumulate at
-  // least ADMIN_PAGE_SIZE matching items or exhaust the table.
-  const allItems: any[] = [];
-  let cursor: string | null = params.nextToken ?? null;
+  // Single request — DynamoDB scans up to DYNAMO_SCAN_LIMIT records and returns
+  // all matching items in one round-trip. nextToken is returned only when the
+  // table has more records beyond the scan limit (i.e. the mailbox grows > 2000).
+  const result: any = await client.graphql({
+    query:     listV2GmailInboxes,
+    variables: { filter, limit: DYNAMO_SCAN_LIMIT, nextToken: params.nextToken ?? null },
+  });
 
-  do {
-    const result: any = await client.graphql({
-      query: listV2GmailInboxes,
-      variables: { filter, limit: ADMIN_PAGE_SIZE, nextToken: cursor },
-    });
-    const page = result?.data?.listV2GmailInboxes;
-    allItems.push(...(page?.items ?? []));
-    cursor = page?.nextToken ?? null;
-  } while (cursor !== null && allItems.length < ADMIN_PAGE_SIZE);
+  const page  = result?.data?.listV2GmailInboxes;
+  const items = (page?.items ?? []).sort((a: any, b: any) => b.dateSent.localeCompare(a.dateSent));
 
-  allItems.sort((a: any, b: any) => b.dateSent.localeCompare(a.dateSent));
-  return { items: allItems, nextToken: cursor };
+  return { items, nextToken: page?.nextToken ?? null };
 };
 
 export const fetchGmailInboxByCustomerId = async (customerId: string): Promise<GmailInbox[]> => {
