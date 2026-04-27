@@ -8,10 +8,14 @@ import { selectGmailInbox, getGmailInboxPage, triggerSync, updateGmailTypeThunk 
 import type { AdminFilterOptions, GmailInbox, GmailInboxType } from "@/stores/GmailInbox/types";
 import { CustomerActionSlideover } from "../GmailInboxAdmin/CustomerActionSlideover";
 
+// ── Constants ──────────────────────────────────────────────────────────────────
+const PAGE_SIZE = 50; // emails shown per UI page
+
+// ── Helpers ────────────────────────────────────────────────────────────────────
 const SOURCE_LABELS: Record<string, string> = {
-  "accesibilidad-residencial":         "Accesibilidad",
+  "accesibilidad-residencial":          "Accesibilidad",
   "instalacion-ascensores-montacargas": "Instalación",
-  "WEB-FORM":                          "Web Form",
+  "WEB-FORM":                           "Web Form",
 };
 
 function SourceBadge({ source }: { source?: string }) {
@@ -37,9 +41,10 @@ const TABS: { key: TabType; label: string }[] = [
   { key: "SPAM",     label: "SPAM"            },
 ];
 
-const today        = () => new Date().toISOString().slice(0, 10);
+const today         = () => new Date().toISOString().slice(0, 10);
 const thirtyDaysAgo = () => { const d = new Date(); d.setDate(d.getDate() - 30); return d.toISOString().slice(0, 10); };
 
+// ── Component ──────────────────────────────────────────────────────────────────
 export default function GmailInboxPage() {
   const dispatch = useAppDispatch();
   const { adminStatus, syncStatus, adminEmails, adminNextToken, adminErrorMessage } =
@@ -53,22 +58,25 @@ export default function GmailInboxPage() {
   const [actionEmail, setActionEmail] = useState<GmailInbox | null>(null);
   const [actionOpen,  setActionOpen]  = useState(false);
 
-  // tokenPages[i] = nextToken needed to load page i
-  // tokenPages[0] = null (first page, no token)
-  const [tokenPages,   setTokenPages]   = useState<(string | null)[]>([null]);
-  const [currentPage,  setCurrentPage]  = useState(0);
+  // Client-side page index — navigates through the in-memory adminEmails array.
+  // Resets to 0 on every new API fetch. No API call on prev/next.
+  const [uiPage, setUiPage] = useState(0);
 
   const activeFilters = useRef({ dateFrom: thirtyDaysAgo(), dateTo: today(), search: "", tab: "ALL" as TabType });
   const pendingRef    = useRef(false);
 
-  const isLoading = adminStatus === "loading";
-  const isSyncing = syncStatus === "syncing";
-  const hasNext   = !!adminNextToken && !isLoading;
-  const hasPrev   = currentPage > 0 && !isLoading;
+  const isLoading   = adminStatus === "loading";
+  const isSyncing   = syncStatus  === "syncing";
+  const totalPages  = Math.max(1, Math.ceil(adminEmails.length / PAGE_SIZE));
+  const hasPrevPage = uiPage > 0;
+  const hasNextPage = uiPage < totalPages - 1;
 
-  // ── Core fetch ─────────────────────────────────────────────────────────────
-  const fetchPage = useCallback(
-    (token: string | null, overrides?: Partial<typeof activeFilters.current>) => {
+  // Emails shown in the current UI page
+  const visibleEmails = adminEmails.slice(uiPage * PAGE_SIZE, (uiPage + 1) * PAGE_SIZE);
+
+  // ── Core fetch — 1 API call per search/filter/tab change ───────────────────
+  const fetchAll = useCallback(
+    (overrides?: Partial<typeof activeFilters.current>) => {
       if (pendingRef.current || isLoading) return;
       pendingRef.current = true;
       const f = { ...activeFilters.current, ...overrides };
@@ -77,53 +85,42 @@ export default function GmailInboxPage() {
         dateTo:     f.dateTo   || undefined,
         searchText: f.search.trim() || undefined,
         type:       f.tab,
-        nextToken:  token,
+        nextToken:  null, // always start from the beginning
       };
+      setUiPage(0);
       dispatch(getGmailInboxPage(params)).finally(() => { pendingRef.current = false; });
     },
     [dispatch, isLoading]
   );
 
-  // ── Load first page on mount ───────────────────────────────────────────────
-  useEffect(() => { fetchPage(null); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // ── Load on mount ──────────────────────────────────────────────────────────
+  useEffect(() => { fetchAll(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Tab change: reset pagination ───────────────────────────────────────────
+  // ── Tab change ─────────────────────────────────────────────────────────────
   const handleTabChange = (tab: TabType) => {
     activeFilters.current = { ...activeFilters.current, tab };
     setActiveTab(tab);
     setExpandedId(null);
-    setTokenPages([null]);
-    setCurrentPage(0);
-    fetchPage(null, { tab });
+    fetchAll({ tab });
   };
 
-  // ── Search: reset pagination ───────────────────────────────────────────────
+  // ── Search / filter ────────────────────────────────────────────────────────
   const handleFilter = () => {
     const filters = { dateFrom, dateTo, search, tab: activeTab };
     activeFilters.current = filters;
-    setTokenPages([null]);
-    setCurrentPage(0);
-    fetchPage(null, filters);
+    fetchAll(filters);
   };
 
-  // ── Next page ──────────────────────────────────────────────────────────────
-  const handleNext = useCallback(() => {
-    if (!adminNextToken || isLoading) return;
-    const nextIdx = currentPage + 1;
-    setTokenPages((prev) => { const u = [...prev]; u[nextIdx] = adminNextToken; return u; });
-    setCurrentPage(nextIdx);
-    setExpandedId(null);
-    fetchPage(adminNextToken);
-  }, [adminNextToken, isLoading, currentPage, fetchPage]);
-
-  // ── Prev page: uses stored token ───────────────────────────────────────────
+  // ── Client-side pagination — no API calls ──────────────────────────────────
   const handlePrev = useCallback(() => {
-    if (currentPage === 0 || isLoading) return;
-    const prevIdx = currentPage - 1;
-    setCurrentPage(prevIdx);
+    setUiPage((p) => Math.max(0, p - 1));
     setExpandedId(null);
-    fetchPage(tokenPages[prevIdx] ?? null);
-  }, [currentPage, isLoading, tokenPages, fetchPage]);
+  }, []);
+
+  const handleNext = useCallback(() => {
+    setUiPage((p) => Math.min(totalPages - 1, p + 1));
+    setExpandedId(null);
+  }, [totalPages]);
 
   // ── Sync ───────────────────────────────────────────────────────────────────
   const handleSync = useCallback(() => {
@@ -131,11 +128,9 @@ export default function GmailInboxPage() {
     pendingRef.current = true;
     dispatch(triggerSync()).finally(() => {
       pendingRef.current = false;
-      setTokenPages([null]);
-      setCurrentPage(0);
-      fetchPage(null);
+      fetchAll();
     });
-  }, [dispatch, isSyncing, isLoading, fetchPage]);
+  }, [dispatch, isSyncing, isLoading, fetchAll]);
 
   const toggleExpand    = (id: string) => setExpandedId((p) => (p === id ? null : id));
   const handleOpenAction  = useCallback((email: GmailInbox) => { setActionEmail(email); setActionOpen(true); }, []);
@@ -163,7 +158,8 @@ export default function GmailInboxPage() {
           <button
             key={tab.key}
             onClick={() => handleTabChange(tab.key)}
-            className={`px-4 py-2 text-sm font-medium rounded-t transition-colors ${
+            disabled={isLoading}
+            className={`px-4 py-2 text-sm font-medium rounded-t transition-colors disabled:opacity-60 ${
               activeTab === tab.key
                 ? "bg-primary text-white border-b-2 border-primary"
                 : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
@@ -219,12 +215,12 @@ export default function GmailInboxPage() {
                 </Table.Tr>
               </Table.Thead>
               <Table.Tbody>
-                {adminEmails.length === 0 ? (
+                {visibleEmails.length === 0 ? (
                   <Table.Tr>
                     <Table.Td colSpan={9} className="text-center text-slate-400 py-6">Sin resultados</Table.Td>
                   </Table.Tr>
                 ) : (
-                  adminEmails.map((email) => (
+                  visibleEmails.map((email) => (
                     <>
                       <Table.Tr
                         key={email.id}
@@ -309,32 +305,34 @@ export default function GmailInboxPage() {
             </Table>
           </div>
 
-          {/* Paginación — solo Anterior / Siguiente */}
-          <div className="flex items-center justify-between mt-4">
-            <span className="text-xs text-slate-400">
-              Página {currentPage + 1}{!hasNext ? " · última" : ""} · {adminEmails.length} registros
-            </span>
+          {/* Paginación cliente — sin llamadas a la API */}
+          {adminEmails.length > 0 && (
+            <div className="flex items-center justify-between mt-4">
+              <span className="text-xs text-slate-400">
+                {adminEmails.length} emails totales · página {uiPage + 1} de {totalPages}
+              </span>
 
-            <div className="flex items-center gap-2">
-              <button
-                onClick={handlePrev}
-                disabled={!hasPrev}
-                className="flex items-center gap-1.5 px-3 h-8 rounded border border-slate-200 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-              >
-                <Lucide icon="ChevronLeft" className="w-3.5 h-3.5" />
-                Anterior
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handlePrev}
+                  disabled={!hasPrevPage}
+                  className="flex items-center gap-1.5 px-3 h-8 rounded border border-slate-200 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  <Lucide icon="ChevronLeft" className="w-3.5 h-3.5" />
+                  Anterior
+                </button>
 
-              <button
-                onClick={handleNext}
-                disabled={!hasNext}
-                className="flex items-center gap-1.5 px-3 h-8 rounded border border-slate-200 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-              >
-                Siguiente
-                <Lucide icon="ChevronRight" className="w-3.5 h-3.5" />
-              </button>
+                <button
+                  onClick={handleNext}
+                  disabled={!hasNextPage}
+                  className="flex items-center gap-1.5 px-3 h-8 rounded border border-slate-200 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  Siguiente
+                  <Lucide icon="ChevronRight" className="w-3.5 h-3.5" />
+                </button>
+              </div>
             </div>
-          </div>
+          )}
         </>
       )}
 
