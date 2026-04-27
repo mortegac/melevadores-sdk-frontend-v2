@@ -1,9 +1,17 @@
 import { generateClient } from 'aws-amplify/api';
-import { listV2GmailInboxByCustomerIdAndDateSent, listV2GmailInboxByUserIdAndDateSent, listV2GmailInboxes } from './queries';
+import {
+  listV2GmailInboxByAccountDate,
+  listV2GmailInboxByCustomerIdAndDateSent,
+  listV2GmailInboxByUserIdAndDateSent,
+  listV2GmailInboxes,
+} from './queries';
 import { v2GmailReply, v2GmailSync, updateV2GmailInboxType } from './mutations';
 import { FilterOptions, AdminFilterOptions, AdminPageResult, GmailInbox } from './types';
 
 const client = generateClient();
+
+// Cuenta Gmail sincronizada
+const GMAIL_ACCOUNT = "melevadores.chile@gmail.com";
 
 export interface GmailReplyParams {
   fromAccount: string;
@@ -26,27 +34,36 @@ export const sendGmailReply = async (params: GmailReplyParams): Promise<{ succes
   return result?.data?.v2GmailReply ?? { success: false, error: "No response" };
 };
 
-// DynamoDB reads this many raw records per request before applying the filter.
-// Higher = fewer API calls needed to find matching items; lower = faster first byte.
-// With ~2000 emails total, one request at 2000 is enough to cover any date range.
-const DYNAMO_SCAN_LIMIT = 2000;
+// Usa la query indexada (GSI byAccountDate: gmailAccount + dateSent).
+// Ventajas vs scan:
+//   - DynamoDB accede directamente por índice → sin scan de tabla completa
+//   - sortDirection DESC → resultados ya ordenados por fecha descendente
+//   - Loop de nextToken → garantiza que se traen TODOS los registros del rango
+//
+// Rango por defecto: hoy hacia 3 meses atrás.
+// Limit por request: 100_000_000 (AppSync lo ajusta internamente a ~1000 por
+// restricción de 1 MB por respuesta; el loop agota todos los tokens hasta traer
+// el set completo).
+const INDEXED_QUERY_LIMIT = 100_000_000;
 
 export const fetchGmailInboxPage = async (params: AdminFilterOptions): Promise<AdminPageResult> => {
-  const now = new Date();
-  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+  const now           = new Date();
+  const threeMonthsAgo = new Date(now);
+  threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
 
-  // dateStr stores "YYYY-MM-DD" — slice ISO timestamps to match the stored format
-  const dateFrom = (params.dateFrom ?? thirtyDaysAgo.toISOString()).slice(0, 10);
-  const dateTo   = (params.dateTo   ?? now.toISOString()).slice(0, 10);
+  // ISO timestamps para el key condition de dateSent en el GSI
+  const dateFrom = params.dateFrom
+    ? `${params.dateFrom}T00:00:00.000Z`
+    : threeMonthsAgo.toISOString();
+  const dateTo = params.dateTo
+    ? `${params.dateTo}T23:59:59.999Z`
+    : now.toISOString();
 
-  const filter: any = {
-    dateStr: { between: [dateFrom, dateTo] },
-  };
-
+  // Filtros adicionales aplicados server-side después del index lookup
+  const filter: Record<string, any> = {};
   if (params.type && params.type !== "ALL") {
     filter.type = { eq: params.type };
   }
-
   if (params.searchText?.trim()) {
     const text = params.searchText.trim();
     filter.or = [
@@ -56,18 +73,30 @@ export const fetchGmailInboxPage = async (params: AdminFilterOptions): Promise<A
     ];
   }
 
-  // Single request — DynamoDB scans up to DYNAMO_SCAN_LIMIT records and returns
-  // all matching items in one round-trip. nextToken is returned only when the
-  // table has more records beyond the scan limit (i.e. the mailbox grows > 2000).
-  const result: any = await client.graphql({
-    query:     listV2GmailInboxes,
-    variables: { filter, limit: DYNAMO_SCAN_LIMIT, nextToken: params.nextToken ?? null },
-  });
+  const allItems: any[] = [];
+  let cursor: string | null = null; // siempre arranca desde el principio del rango
 
-  const page  = result?.data?.listV2GmailInboxes;
-  const items = (page?.items ?? []).sort((a: any, b: any) => b.dateSent.localeCompare(a.dateSent));
+  // Loop de tokens: itera hasta que DynamoDB no tenga más registros en el rango
+  do {
+    const result: any = await client.graphql({
+      query:     listV2GmailInboxByAccountDate,
+      variables: {
+        gmailAccount:  GMAIL_ACCOUNT,
+        dateSent:      { between: [dateFrom, dateTo] },
+        sortDirection: "DESC",
+        filter:        Object.keys(filter).length > 0 ? filter : undefined,
+        limit:         INDEXED_QUERY_LIMIT,
+        nextToken:     cursor,
+      },
+    });
 
-  return { items, nextToken: page?.nextToken ?? null };
+    const page = result?.data?.listV2GmailInboxByGmailAccountAndDateSent;
+    allItems.push(...(page?.items ?? []));
+    cursor = page?.nextToken ?? null;
+  } while (cursor !== null);
+
+  // El GSI con sortDirection DESC ya devuelve los emails más recientes primero
+  return { items: allItems, nextToken: null };
 };
 
 export const fetchGmailInboxByCustomerId = async (customerId: string): Promise<GmailInbox[]> => {
