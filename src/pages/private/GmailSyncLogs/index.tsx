@@ -36,10 +36,17 @@ const SOURCE_LABELS: Record<string, string> = {
 function DetailModal({ log, onClose }: { log: GmailSyncLog; onClose: () => void }) {
   const cfg = STATUS_CONFIG[log.status] ?? { label: log.status, badgeClass: "bg-slate-100 text-slate-600 border border-slate-200", icon: "AlertCircle" as const };
 
-  let detail: Record<string, AccountSyncDetail> | null = null;
+  let detail: Record<string, any> | null = null;
   try {
     if (log.resultDetail) detail = JSON.parse(log.resultDetail);
   } catch { detail = null; }
+
+  const errorDetail = detail?.__error__ ?? null;
+  const accountResults = detail
+    ? Object.fromEntries(Object.entries(detail).filter(([k]) => k !== "__error__" && k !== "partial").concat(
+        detail.partial ? Object.entries(detail.partial) : []
+      ))
+    : null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -102,8 +109,64 @@ function DetailModal({ log, onClose }: { log: GmailSyncLog; onClose: () => void 
             </div>
           </div>
 
+          {/* Error técnico completo */}
+          {errorDetail && (
+            <div>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Detalle del error</p>
+
+              {/* tipo + mensaje */}
+              <div className="flex flex-wrap gap-2 mb-3">
+                {errorDetail.errorType && (
+                  <span className="inline-flex items-center gap-1 text-xs font-mono font-medium rounded px-2 py-0.5 bg-red-50 text-red-700 border border-red-100">
+                    {errorDetail.errorType}
+                  </span>
+                )}
+                {errorDetail.status && (
+                  <span className="inline-flex items-center gap-1 text-xs font-medium rounded px-2 py-0.5 bg-orange-50 text-orange-700 border border-orange-100">
+                    HTTP {errorDetail.status}
+                  </span>
+                )}
+              </div>
+
+              {/* response.data (el mensaje de Google) */}
+              {errorDetail.response?.data && (
+                <div className="mb-3 p-3 rounded-lg bg-red-50 border border-red-100">
+                  <p className="text-xs font-semibold text-red-600 mb-1">Respuesta de Google OAuth2</p>
+                  <pre className="text-xs text-red-700 font-mono whitespace-pre-wrap break-all">
+                    {JSON.stringify(errorDetail.response.data, null, 2)}
+                  </pre>
+                </div>
+              )}
+
+              {/* request info */}
+              {errorDetail.config?.url && (
+                <div className="mb-3 p-3 rounded-lg bg-slate-50 border border-slate-100">
+                  <p className="text-xs font-semibold text-slate-500 mb-1">Request</p>
+                  <p className="text-xs font-mono text-slate-600">
+                    <span className="font-semibold">{errorDetail.config.method?.toUpperCase() ?? "POST"}</span>{" "}
+                    {errorDetail.config.url}
+                  </p>
+                </div>
+              )}
+
+              {/* stack trace */}
+              {errorDetail.stack && errorDetail.stack.length > 0 && (
+                <details className="group">
+                  <summary className="text-xs text-slate-400 cursor-pointer hover:text-slate-600 select-none mb-1">
+                    Stack trace ({errorDetail.stack.length} líneas)
+                  </summary>
+                  <div className="p-3 rounded-lg bg-slate-900 border border-slate-700">
+                    {(errorDetail.stack as string[]).map((line: string, i: number) => (
+                      <p key={i} className="text-xs font-mono text-slate-300 leading-5">{line}</p>
+                    ))}
+                  </div>
+                </details>
+              )}
+            </div>
+          )}
+
           {/* Detalle por cuenta */}
-          {detail && Object.entries(detail).map(([account, d]) => {
+          {accountResults && Object.entries(accountResults).map(([account, d]) => {
             if (!d || typeof d !== "object") return null;
             const accountDetail = d as AccountSyncDetail;
             return (
@@ -173,7 +236,7 @@ function DetailModal({ log, onClose }: { log: GmailSyncLog; onClose: () => void 
           })}
 
           {/* Sin detalle disponible */}
-          {!detail && (
+          {!detail && !errorDetail && (
             <div className="flex items-center gap-2 text-xs text-slate-400 py-2">
               <Lucide icon="Info" className="w-4 h-4" />
               Sin detalle disponible para esta ejecución.
