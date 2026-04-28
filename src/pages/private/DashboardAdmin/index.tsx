@@ -1,5 +1,6 @@
 import Lucide from "@/components/Base/Lucide";
 import Chart from "@/components/Base/Chart";
+import LoadingIcon from "@/components/Base/LoadingIcon";
 import { useAppSelector, useAppDispatch } from "@/stores/hooks";
 import { setBreadcrumb } from "@/stores/breadcrumb";
 import { getCustomersThunk, selectCustomers } from "@/stores/Customers/slice";
@@ -127,7 +128,9 @@ function Main() {
   };
 
   const isLoadingCustomers = customersStatus === "loading";
-  const isLoadingEmails = adminStatus === "loading";
+  // También muestra cargando en estado 'idle' con array vacío (antes de que
+  // dispare el useEffect) para evitar que el gráfico aparezca en blanco.
+  const isLoadingEmails = adminStatus === "loading" || (adminStatus === "idle" && adminEmails.length === 0);
 
   return (
     <div className="grid grid-cols-12 gap-y-6 gap-x-6">
@@ -171,7 +174,10 @@ function Main() {
           </div>
         </div>
         {isLoadingEmails ? (
-          <div className="h-48 bg-slate-100 dark:bg-darkmode-400 rounded animate-pulse" />
+          <div className="h-48 flex flex-col items-center justify-center gap-2 bg-slate-50 dark:bg-darkmode-400 rounded">
+            <LoadingIcon icon="three-dots" color="#03b2cb" className="w-8 h-8" />
+            <span className="text-xs text-slate-400">Cargando emails...</span>
+          </div>
         ) : (
           <div className="h-48">
             <Chart type="bar" data={emailsChartData} options={chartOptions} height="auto" />

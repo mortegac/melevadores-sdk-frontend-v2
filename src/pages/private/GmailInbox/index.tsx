@@ -204,7 +204,19 @@ export default function GmailInboxPage() {
 
       {/* Estado */}
       {isLoading && <div className="flex justify-center py-10"><LoadingIcon icon="three-dots" className="w-10 h-10" /></div>}
-      {adminStatus === "failed" && <div className="box p-4 text-danger text-sm">{adminErrorMessage}</div>}
+
+      {adminStatus === "failed" && (
+        <div className="box p-4 mb-4 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2 text-danger text-sm">
+            <Lucide icon="AlertCircle" className="w-4 h-4 shrink-0" />
+            <span>{adminErrorMessage || "Error al cargar los emails. Intenta nuevamente."}</span>
+          </div>
+          <Button variant="outline-danger" size="sm" onClick={() => fetchAll()} disabled={isLoading}>
+            <Lucide icon="RefreshCw" className="w-3.5 h-3.5 mr-1.5" />
+            Reintentar
+          </Button>
+        </div>
+      )}
 
       {/* Tabla */}
       {adminStatus !== "loading" && (

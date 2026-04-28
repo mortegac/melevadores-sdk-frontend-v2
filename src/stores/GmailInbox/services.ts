@@ -76,6 +76,7 @@ export const fetchGmailInboxPage = async (params: AdminFilterOptions): Promise<A
   const allItems: any[] = [];
   let cursor: string | null = null; // siempre arranca desde el principio del rango
 
+  try {
   // Loop de tokens: itera hasta que DynamoDB no tenga más registros en el rango
   do {
     const result: any = await client.graphql({
@@ -97,6 +98,14 @@ export const fetchGmailInboxPage = async (params: AdminFilterOptions): Promise<A
 
   // El GSI con sortDirection DESC ya devuelve los emails más recientes primero
   return { items: allItems, nextToken: null };
+  } catch (err: any) {
+    // Normaliza el error de AppSync/GraphQL en un mensaje legible
+    const msg =
+      err?.errors?.[0]?.message ??
+      err?.message ??
+      "Error al conectar con el servidor. Intenta nuevamente.";
+    throw new Error(msg);
+  }
 };
 
 export const fetchGmailInboxByCustomerId = async (customerId: string): Promise<GmailInbox[]> => {
