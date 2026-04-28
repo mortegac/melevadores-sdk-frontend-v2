@@ -41,8 +41,8 @@ const TABS: { key: TabType; label: string }[] = [
   { key: "SPAM",     label: "SPAM"            },
 ];
 
-const today         = () => new Date().toISOString().slice(0, 10);
-const thirtyDaysAgo = () => { const d = new Date(); d.setDate(d.getDate() - 30); return d.toISOString().slice(0, 10); };
+const today       = () => new Date().toISOString().slice(0, 10);
+const sevenDaysAgo = () => { const d = new Date(); d.setDate(d.getDate() - 7); return d.toISOString().slice(0, 10); };
 
 // ── Component ──────────────────────────────────────────────────────────────────
 export default function GmailInboxPage() {
@@ -51,7 +51,7 @@ export default function GmailInboxPage() {
     useAppSelector(selectGmailInbox);
 
   const [activeTab,   setActiveTab]   = useState<TabType>("ALL");
-  const [dateFrom,    setDateFrom]    = useState(thirtyDaysAgo());
+  const [dateFrom,    setDateFrom]    = useState(sevenDaysAgo());
   const [dateTo,      setDateTo]      = useState(today());
   const [search,      setSearch]      = useState("");
   const [expandedId,  setExpandedId]  = useState<string | null>(null);
@@ -62,7 +62,7 @@ export default function GmailInboxPage() {
   // Resets to 0 on every new API fetch. No API call on prev/next.
   const [uiPage, setUiPage] = useState(0);
 
-  const activeFilters = useRef({ dateFrom: thirtyDaysAgo(), dateTo: today(), search: "", tab: "ALL" as TabType });
+  const activeFilters = useRef({ dateFrom: sevenDaysAgo(), dateTo: today(), search: "", tab: "ALL" as TabType });
   const pendingRef    = useRef(false);
 
   const isLoading   = adminStatus === "loading";
@@ -190,6 +190,16 @@ export default function GmailInboxPage() {
             Buscar
           </Button>
         </div>
+      </div>
+
+      {/* Alerta rango de fechas */}
+      <div className="flex items-center gap-2 px-4 py-2.5 mb-4 rounded-lg border border-blue-100 bg-blue-50 text-xs text-blue-700">
+        <Lucide icon="Info" className="w-4 h-4 shrink-0 text-blue-500" />
+        <span>
+          Solo se muestran emails recibidos en los <strong>últimos 7 días</strong> (del{" "}
+          <strong>{dateFrom}</strong> al <strong>{dateTo}</strong>). Para ver más, ajusta el rango de fechas y presiona{" "}
+          <strong>Buscar</strong>.
+        </span>
       </div>
 
       {/* Estado */}
