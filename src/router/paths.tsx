@@ -56,6 +56,9 @@ export const CUSTOMERS = "/customers";
 export const CUSTOMER_MESSAGES = "/customer-messages";
 export const CUSTOMER_ACTIONS = "/customer-actions";
 
+// LOGS
+export const GMAIL_SYNC_LOGS = "/gmail-sync-logs";
+
 // PUBLIC
 export const ROOT = "/";
 export const PUBLIC = "/auth";

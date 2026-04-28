@@ -12,6 +12,7 @@ import {
   CUSTOMERS,
   CUSTOMER_MESSAGES,
   CUSTOMER_ACTIONS,
+  GMAIL_SYNC_LOGS,
 } from "@/router/paths";
 
 export interface Menu {
@@ -35,6 +36,7 @@ const adminRolePermissions: string[] = [
   CUSTOMERS,
   CUSTOMER_MESSAGES,
   CUSTOMER_ACTIONS,
+  GMAIL_SYNC_LOGS,
 ];
 
 const AnfitrionesPermissions: string[] = [
@@ -174,6 +176,11 @@ const getMenuByRole = (roleId: string): Array<Menu | string> => {
           icon: "Users",
           pathname: USERS_ADMIN,
           title: "Usuarios",
+        },
+        {
+          icon: "FileText",
+          pathname: GMAIL_SYNC_LOGS,
+          title: "Logs Gmail",
         },
       ];
     case "anfitrion":

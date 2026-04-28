@@ -20,6 +20,7 @@ import {
     CUSTOMER_MESSAGES,
     CUSTOMER_ACTIONS,
     RESUME_CLIENT,
+    GMAIL_SYNC_LOGS,
   } from "./paths";
 
   import Layout from "../themes";
@@ -30,6 +31,7 @@ import {
   const CustomersPage = lazy(() => import("../pages/private/Customers"));
   const CustomerMessagesPage = lazy(() => import("../pages/private/CustomerMessages"));
   const CustomerActionsPage = lazy(() => import("../pages/private/CustomerActions"));
+  const GmailSyncLogsPage = lazy(() => import("../pages/private/GmailSyncLogs"));
   const AdminDashboard = lazy(() => import("../pages/private/DashboardAdmin"));
   const NoneDashboard = lazy(() => import("../pages/private/DashboardNone"));
   
@@ -223,6 +225,14 @@ export const privateRoutes = {
           element: (
             <ProtectedRoute requiredPath={CUSTOMER_ACTIONS}>
               <CustomerActionsPage />
+            </ProtectedRoute>
+          ),
+        },
+        {
+          path: GMAIL_SYNC_LOGS,
+          element: (
+            <ProtectedRoute requiredPath={GMAIL_SYNC_LOGS}>
+              <GmailSyncLogsPage />
             </ProtectedRoute>
           ),
         },
