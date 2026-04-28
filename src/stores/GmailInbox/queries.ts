@@ -51,7 +51,7 @@ export const listV2GmailInboxByAccountDate = /* GraphQL */ `
     $gmailAccount: String!
     $dateSent: ModelStringKeyConditionInput
     $sortDirection: ModelSortDirection
-    $filter: ModelV2GmailInboxFilterInput
+    $filter: Modelv2GmailInboxFilterInput
     $limit: Int
     $nextToken: String
   ) {
